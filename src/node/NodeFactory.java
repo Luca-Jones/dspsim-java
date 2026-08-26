@@ -27,7 +27,7 @@ public class NodeFactory implements VertexFactory<Node> {
 			case "decimator" -> createDecimatorNode(config.attributes());
 			case "interpolator" -> createInterpolatorNode(config.attributes());
 			case "dataout" -> createDataOutNode(config.attributes());
-			case "sh" -> createSampleHoldNode(config.attributes());
+			case "hold" -> createSampleHoldNode(config.attributes());
 			default -> throw new RuntimeException("No such node type: " + type);
 		};
 	}
