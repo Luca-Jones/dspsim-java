@@ -50,6 +50,9 @@ python3 python/plot.py examples/out.csv
 
 ## Graph File Format
 
+See the Graphviz documentation at [https://www.graphviz.org/documentation/](https://www.graphviz.org/documentation/)
+for more details.
+
 ```dot
 digraph {
     in [type="impulse"];
@@ -101,9 +104,14 @@ it will return zeros.
 ### Example
 
 ```csv
+Some Title,
 1,
 2,
 3,
+this part is ignored,
+4,
+5,
+so is that,
 ```
 
 
