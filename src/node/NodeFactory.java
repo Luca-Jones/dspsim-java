@@ -27,10 +27,17 @@ public class NodeFactory implements VertexFactory<Node> {
 			case "decimator" -> createDecimatorNode(config.attributes());
 			case "interpolator" -> createInterpolatorNode(config.attributes());
 			case "dataout" -> createDataOutNode(config.attributes());
+			case "sh" -> createSampleHoldNode(config.attributes());
 			default -> throw new RuntimeException("No such node type: " + type);
 		};
 	}
 
+	private static SampleHoldNode createSampleHoldNode(Map<String, String> attrs) {
+		if (!attrs.containsKey("ratio"))
+			throw new RuntimeException("Interpolator needs a ratio attribute.");
+		Integer ratio = Integer.parseInt(attrs.get("ratio"));
+		return new SampleHoldNode(ratio);
+	}
 
 	private static ConstantNode createConstantNode(Map<String, String> attrs) {
 		if (!attrs.containsKey("value"))
