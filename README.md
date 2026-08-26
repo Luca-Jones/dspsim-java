@@ -108,10 +108,9 @@ Some Title,
 1,
 2,
 3,
-this part is ignored,
+the following is ignored,
 4,
 5,
-so is that,
 ```
 
 
