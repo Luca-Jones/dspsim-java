@@ -1,0 +1,9 @@
+// run 8 iterations
+// expected: 0, 10, 0, -10, 0, 10, 0, -10
+digraph {
+
+	in [type="sine", amplitude=10, period=4];
+	out [type="dataout"];
+
+	in -> out;
+}

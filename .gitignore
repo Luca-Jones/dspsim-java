@@ -1,0 +1,9 @@
+bin/
+bintest/
+.venv/
+.classpath
+.project
+/dspflow.jar
+/manifest.txt
+/*.csv
+/*.png

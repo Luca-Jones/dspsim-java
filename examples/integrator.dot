@@ -1,0 +1,12 @@
+digraph {
+    in [type="impulse"];
+    delay [type="constant", value=1];
+    sum [type="sum"];
+    out [type="dataout", file="/dev/stdout"];
+
+    in -> sum;
+    sum -> delay;
+    delay -> sum;
+    sum -> out;
+}
+

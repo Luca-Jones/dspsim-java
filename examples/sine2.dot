@@ -1,0 +1,10 @@
+// phase in samples: sin(2*pi*(n+2)/8)*100
+// run 8 iterations
+// expected: 100, 71, 0, -71, -100, -71, 0, 71
+digraph {
+
+	in [type="sine", amplitude=100, period=8, phase=2];
+	out [type="dataout"];
+
+	in -> out;
+}

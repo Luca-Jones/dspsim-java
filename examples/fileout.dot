@@ -1,0 +1,9 @@
+digraph {
+
+	in [type="constant", value=2];
+	g [type="gain", value=5];
+	out [type="dataout", file="fileout.csv"];
+
+	in -> g;
+	g -> out;
+}

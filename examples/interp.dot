@@ -1,0 +1,9 @@
+digraph {
+
+	in [type="impulse"];
+	up [type="interpolator", ratio=3];
+	out [type="dataout"];
+
+	in -> up;
+	up -> out;
+}

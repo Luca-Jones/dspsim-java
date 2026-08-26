@@ -1,0 +1,127 @@
+digraph {
+	in[type="impulse"];
+
+	// integrator stages
+	i1s[type="sum"];
+	i1d[type="delay"];
+	i2s[type="sum"];
+	i2d[type="delay"];
+	i3s[type="sum"];
+	i3d[type="delay"];
+	i4s[type="sum"];
+	i4d[type="delay"];
+	i5s[type="sum"];
+	i5d[type="delay"];
+	i6s[type="sum"];
+	i6d[type="delay"];
+	i7s[type="sum"];
+	i7d[type="delay"];
+
+	dec[type="decimator", ratio=2];
+
+	// comb stages
+	c1d[type="delay"];
+	c1g[type="gain", value=-1];
+	c1s[type="sum"];
+	c2d[type="delay"];
+	c2g[type="gain", value=-1];
+	c2s[type="sum"];
+	c3d[type="delay"];
+	c3g[type="gain", value=-1];
+	c3s[type="sum"];
+	c4d[type="delay"];
+	c4g[type="gain", value=-1];
+	c4s[type="sum"];
+	c5d[type="delay"];
+	c5g[type="gain", value=-1];
+	c5s[type="sum"];
+	c6d[type="delay"];
+	c6g[type="gain", value=-1];
+	c6s[type="sum"];
+	c7d[type="delay"];
+	c7g[type="gain", value=-1];
+	c7s[type="sum"];
+
+	out[type="dataout"];
+
+	// integrator 1
+	in -> i1s;
+	i1s -> i1d;
+	i1d -> i1s;
+
+	// integrator 2
+	i1d -> i2s;
+	i2s -> i2d;
+	i2d -> i2s;
+
+	// integrator 3
+	i2d -> i3s;
+	i3s -> i3d;
+	i3d -> i3s;
+
+	// integrator 4
+	i3d -> i4s;
+	i4s -> i4d;
+	i4d -> i4s;
+
+	// integrator 5
+	i4d -> i5s;
+	i5s -> i5d;
+	i5d -> i5s;
+
+	// integrator 6
+	i5d -> i6s;
+	i6s -> i6d;
+	i6d -> i6s;
+
+	// integrator 7
+	i6d -> i7s;
+	i7s -> i7d;
+	i7d -> i7s;
+
+	i7d -> dec;
+
+	// comb 1
+	dec -> c1d;
+	dec -> c1s;
+	c1d -> c1g;
+	c1g -> c1s;
+
+	// comb 2
+	c1s -> c2d;
+	c1s -> c2s;
+	c2d -> c2g;
+	c2g -> c2s;
+
+	// comb 3
+	c2s -> c3d;
+	c2s -> c3s;
+	c3d -> c3g;
+	c3g -> c3s;
+
+	// comb 4
+	c3s -> c4d;
+	c3s -> c4s;
+	c4d -> c4g;
+	c4g -> c4s;
+
+	// comb 5
+	c4s -> c5d;
+	c4s -> c5s;
+	c5d -> c5g;
+	c5g -> c5s;
+
+	// comb 6
+	c5s -> c6d;
+	c5s -> c6s;
+	c6d -> c6g;
+	c6g -> c6s;
+
+	// comb 7
+	c6s -> c7d;
+	c6s -> c7s;
+	c7d -> c7g;
+	c7g -> c7s;
+
+	c7s -> out;
+}
