@@ -7,3 +7,4 @@ bintest/
 /manifest.txt
 /*.csv
 /*.png
+/*.dot
