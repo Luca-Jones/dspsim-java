@@ -4,6 +4,17 @@ A digital systems simulator. Describe a digital system as a graph of basic
 building blocks using the Graphiz `.dot` file format, then run the simulator.
 It streams data samples through the graph and dumps the output data into files.
 
+
+## Build
+
+Java program:
+```sh
+make      # compile Java classes
+make jar  # create an executable jar
+make test # run JUnit tests
+```
+
+
 ## Usage
 
 Arguments: `<graph.dot> [iterations]`
@@ -16,13 +27,26 @@ or
 java -jar dspflow.jar examples/fir.dot 8
 ```
 
-## Build
+Once you have run the simulation and the data you care about got dumped into a
+file like out.csv, then you can visualize this data using the python script in
+this repository. First install the dependencies:
 
 ```sh
-make      # compile Java classes
-make jar  # create an executable jar
-make test # run JUnit tests
+pip install -r requirements.txt
 ```
+
+Then run the script:
+
+Windows:
+```sh
+python python/plot.py examples/out.csv
+```
+
+MacOS / Linux:
+```sh
+python3 python/plot.py examples/out.csv
+```
+
 
 ## Graph File Format
 
@@ -44,6 +68,7 @@ For now, the simulator program is headless. However, I found that this online
 Graphviz tool is very helpful. [https://magjac.com/graphviz-visual-editor/](https://magjac.com/graphviz-visual-editor/)
 
 ![integrator](examples/integrator.png)
+
 
 ## Nodes
 
@@ -80,6 +105,7 @@ it will return zeros.
 2,
 3,
 ```
+
 
 ## Citations
 
