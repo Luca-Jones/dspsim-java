@@ -3,7 +3,7 @@ bintest/
 .venv/
 .classpath
 .project
-/dspflow.jar
+/dspsim.jar
 /manifest.txt
 /*.csv
 /*.png

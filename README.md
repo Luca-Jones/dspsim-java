@@ -24,7 +24,7 @@ java -cp bin Main examples/integrator.dot 8
 ```
 or
 ```sh
-java -jar dspflow.jar examples/integrator.dot 8
+java -jar dspsim.jar examples/integrator.dot 8
 ```
 
 Once you have run the simulation and the data you care about got dumped into a
