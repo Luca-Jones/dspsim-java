@@ -4,7 +4,7 @@ BIN=bin
 LIB=lib
 SRC=src
 MAIN=Main
-OUT=dspflow
+OUT=dspsim
 
 TESTBIN=bintest
 TESTLIB=libtest
