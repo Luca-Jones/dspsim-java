@@ -19,10 +19,15 @@ def plot(title: str, data: np.ndarray):
     t.set_xlabel('n')
     t.set_ylabel('x[n]')
 
-    freqs = np.fft.rfftfreq(len(data))
+    n = max(4096, 32*len(data))
     with np.errstate(divide='ignore'):
-        f.plot(freqs, dB(np.abs(np.fft.rfft(data))))
+        mag = dB(np.abs(np.fft.rfft(data, n)))
+    f.plot(np.fft.rfftfreq(n), mag)
     f.set_xlim(0, 0.5)
+    finite = mag[np.isfinite(mag)]
+    lo, hi = np.percentile(finite, 1), finite.max()
+    pad = 0.05*(hi - lo) or 1.0
+    f.set_ylim(lo - pad, hi + pad)
     f.set_xlabel('f/fs')
     f.set_ylabel('Magnitude (dB)')
 
