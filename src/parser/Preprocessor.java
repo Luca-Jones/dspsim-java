@@ -27,17 +27,17 @@ public class Preprocessor {
 
 				if (macros.containsKey(name.text()))
 					throw new RuntimeException("macro '" + name.text() + "' redefined");
-
+				macros.put(name.text(), expandMacrosIn(value, macros));
 				pos += 3;
 			} else {
-				out.add(expandMacro(token, macros));
+				out.add(expandMacrosIn(token, macros));
 				pos++;
 			}
 		}
 		return out;
 	}
 
-	private static Token expandMacro(Token token, Map<String, Token> macros) {
+	private static Token expandMacrosIn(Token token, Map<String, Token> macros) {
 		if (token.type() != TokenType.NAME)
 			return token;
 		return macros.getOrDefault(token.text(), token);
