@@ -1,0 +1,10 @@
+digraph {
+
+	a[type="constant", value=81];
+	l[type="rshift", value=3];
+	out[type="dataout"];
+
+	a -> l;
+	l -> out;
+
+}

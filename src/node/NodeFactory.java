@@ -1,5 +1,6 @@
 package node;
 
+import java.io.ObjectInputFilter.Status;
 import java.util.Map;
 
 import graph.VertexFactory;
@@ -21,22 +22,17 @@ public class NodeFactory implements VertexFactory<Node> {
 			case "sine" -> createSineNode(config.attributes());
 			case "datain" -> createDataInNode(config.attributes());
 			case "gain" -> createGainNode(config.attributes());
+			case "lshift" -> createLShiftNode(config.attributes());
+			case "rshift" -> createRShiftNode(config.attributes());
 			case "sum" -> createSumNode();
 			case "multiplier" -> createMultiplierNode();
 			case "delay" -> createDelayNode(config.attributes());
 			case "decimator" -> createDecimatorNode(config.attributes());
 			case "interpolator" -> createInterpolatorNode(config.attributes());
-			case "dataout" -> createDataOutNode(config.attributes());
 			case "hold" -> createSampleHoldNode(config.attributes());
+			case "dataout" -> createDataOutNode(config.attributes());
 			default -> throw new RuntimeException("No such node type: " + type);
 		};
-	}
-
-	private static SampleHoldNode createSampleHoldNode(Map<String, String> attrs) {
-		if (!attrs.containsKey("ratio"))
-			throw new RuntimeException("Interpolator needs a ratio attribute.");
-		Integer ratio = Integer.parseInt(attrs.get("ratio"));
-		return new SampleHoldNode(ratio);
 	}
 
 	private static ConstantNode createConstantNode(Map<String, String> attrs) {
@@ -71,6 +67,20 @@ public class NodeFactory implements VertexFactory<Node> {
 		return new GainNode(value);
 	}
 
+	private static LShiftNode createLShiftNode(Map<String, String> attrs) {
+		if (!attrs.containsKey("value"))
+			throw new RuntimeException("LShift needs a value attribute.");
+		Integer value = Integer.parseInt(attrs.get("value"));
+		return new LShiftNode(value);
+	}
+
+	private static RShiftNode createRShiftNode(Map<String, String> attrs) {
+		if (!attrs.containsKey("value"))
+			throw new RuntimeException("RShift needs a value attribute.");
+		Integer value = Integer.parseInt(attrs.get("value"));
+		return new RShiftNode(value);
+	}
+
 	private static SumNode createSumNode() {
 		return new SumNode();
 	}
@@ -92,6 +102,13 @@ public class NodeFactory implements VertexFactory<Node> {
 			throw new RuntimeException("Decimator needs a ratio attribute.");
 		Integer ratio = Integer.parseInt(attrs.get("ratio"));
 		return new DecimatorNode(ratio);
+	}
+
+	private static SampleHoldNode createSampleHoldNode(Map<String, String> attrs) {
+		if (!attrs.containsKey("ratio"))
+			throw new RuntimeException("Hold needs a ratio attribute.");
+		Integer ratio = Integer.parseInt(attrs.get("ratio"));
+		return new SampleHoldNode(ratio);
 	}
 
 	private static InterpolatorNode createInterpolatorNode(Map<String, String> attrs) {

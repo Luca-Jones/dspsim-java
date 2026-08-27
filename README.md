@@ -84,12 +84,14 @@ The `type` attribute selects the node (case-insensitive):
 | sine         | int amplitude, int period, int phase = 0   | 0      | 1       |
 | datain       | string file                                | 0      | 1       |
 | gain         | int value                                  | 1      | 1       |
+| lshift       | int value                                  | 1      | 1       |
+| rshift       | int value                                  | 1      | 1       |
 | sum          |                                            | 2+     | 1       |
 | multiplier   |                                            | 2      | 1       |
 | delay        | int delay = 1                              | 1      | 1       |
 | decimator    | int ratio                                  | 1      | 1       |
 | interpolator | int ratio                                  | 1      | 1       |
-| hold           | int ratio                                  | 1      | 1       |
+| hold         | int ratio                                  | 1      | 1       |
 | dataout      | string file = stdout                       | 1      | 0       |
 
 
