@@ -37,7 +37,7 @@ public class SDFGraph {
 
 	public static SDFGraph loadFromFile(String filename) throws IOException {
 		String fileContents = Files.readString(Path.of(filename));
-		List<Token> tokens = Lexer.lex(fileContents);
+		List<Token> tokens = Preprocessor.process(Lexer.lex(fileContents));
 		Parser parser = new Parser(tokens);
 		GraphConfig gc = parser.parseGraph();
 		SDFGraph sdf = new SDFGraph(gc);

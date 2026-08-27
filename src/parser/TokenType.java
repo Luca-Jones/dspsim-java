@@ -2,6 +2,7 @@ package parser;
 
 public enum TokenType {
 	DIGRAPH,
+	DEFINE,
 	EOF,
 	LBRACE,
 	RBRACE,

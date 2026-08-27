@@ -1,5 +1,7 @@
+#define DELAY 2
 digraph {
 	in[type="impulse"];
+	mag[type="lshift", value=0];
 
 	// integrator stages
 	i1s[type="sum"];
@@ -17,35 +19,38 @@ digraph {
 	i7s[type="sum"];
 	i7d[type="delay"];
 
-	dec[type="decimator", ratio=2];
+	dec[type="decimator", ratio=1];
 
 	// comb stages
-	c1d[type="delay"];
+	c1d[type="delay", delay=DELAY];
 	c1g[type="gain", value=-1];
 	c1s[type="sum"];
-	c2d[type="delay"];
+	c2d[type="delay", delay=DELAY];
 	c2g[type="gain", value=-1];
 	c2s[type="sum"];
-	c3d[type="delay"];
+	c3d[type="delay", delay=DELAY];
 	c3g[type="gain", value=-1];
 	c3s[type="sum"];
-	c4d[type="delay"];
+	c4d[type="delay", delay=DELAY];
 	c4g[type="gain", value=-1];
 	c4s[type="sum"];
-	c5d[type="delay"];
+	c5d[type="delay", delay=DELAY];
 	c5g[type="gain", value=-1];
 	c5s[type="sum"];
-	c6d[type="delay"];
+	c6d[type="delay", delay=DELAY];
 	c6g[type="gain", value=-1];
 	c6s[type="sum"];
-	c7d[type="delay"];
+	c7d[type="delay", delay=DELAY];
 	c7g[type="gain", value=-1];
 	c7s[type="sum"];
 
-	out[type="dataout"];
+	out[type="dataout", file="cic.csv"];
+	hold[type="hold", ratio=1];
+	cor[type="rshift", value=0];
 
 	// integrator 1
-	in -> i1s;
+	in -> mag;
+	mag -> i1s;
 	i1s -> i1d;
 	i1d -> i1s;
 
@@ -123,5 +128,7 @@ digraph {
 	c7d -> c7g;
 	c7g -> c7s;
 
-	c7s -> out;
+	c7s -> hold;
+	hold -> cor;
+	cor -> out;
 }
