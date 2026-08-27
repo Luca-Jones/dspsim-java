@@ -20,8 +20,10 @@ def plot(title: str, data: np.ndarray):
     t.set_ylabel('x[n]')
 
     n = max(4096, 32*len(data))
+    Xk = np.fft.rfft(data, n)
+    Xk = Xk / Xk[0]
     with np.errstate(divide='ignore'):
-        mag = dB(np.abs(np.fft.rfft(data, n)))
+        mag = dB(np.abs(Xk))
     f.plot(np.fft.rfftfreq(n), mag)
     f.set_xlim(0, 0.5)
     finite = mag[np.isfinite(mag)]
@@ -38,4 +40,5 @@ if __name__ == '__main__':
     for file in sys.argv[1:]:
         fig = plot(file, get_data(file))
         fig.savefig(Path(file).with_suffix('.png'))
+        plt.show()
         plt.close(fig)
