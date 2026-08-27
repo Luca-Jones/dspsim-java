@@ -36,6 +36,11 @@ public class Lexer {
 					tokens.add(token);
 					pos += token.text().length() + 2;
 				}
+				case '#' -> {
+					Token token = directive(input, pos);
+					tokens.add(token);
+					pos += token.text().length();
+				}
 				case '/' -> {
 					pos++;
 					if (input.charAt(pos) == '/') {
@@ -106,6 +111,16 @@ public class Lexer {
 		if (str.toLowerCase().equals("digraph"))
 			return new Token(TokenType.DIGRAPH, "digraph");
 		return new Token(TokenType.NAME, input.substring(start, pos));
+	}
+
+	private static Token directive(String input, int pos) {
+		int start = pos++;
+		while (pos < input.length() && Character.isLetter(input.charAt(pos)))
+			pos++;
+		String str = input.substring(start, pos);
+		if (!str.equals("#define"))
+			throw new RuntimeException("Unknown directive '" + str + "' at " + start);
+		return new Token(TokenType.DEFINE, str);
 	}
 
 	private static Token arrow(String input, int pos) {

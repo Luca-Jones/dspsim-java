@@ -97,6 +97,20 @@ public class LexerTest {
 	}
 
 	@Test
+	void defineDirectiveToken() {
+		assertEquals(
+			List.of(TokenType.DEFINE, TokenType.NAME, TokenType.NUMBER, TokenType.EOF),
+			types("#define RATIO 2"));
+		assertEquals("#define", Lexer.lex("#define RATIO 2").get(0).text());
+	}
+
+	@Test
+	void unknownDirectiveThrows() {
+		RuntimeException e = assertThrows(RuntimeException.class, () -> Lexer.lex("#include \"x\""));
+		assertTrue(e.getMessage().contains("Unknown directive"));
+	}
+
+	@Test
 	void lineCommentIsSkipped() {
 		assertEquals(
 			List.of(TokenType.NAME, TokenType.NAME, TokenType.EOF),
