@@ -2,11 +2,13 @@ digraph {
     in [type="impulse"];
     delay [type="constant", value=1];
     sum [type="sum"];
-    out [type="dataout", file="/dev/stdout"];
+    out [type="dataout"];
+	fout[type="dataout", file="out.csv"];
 
     in -> sum;
     sum -> delay;
     delay -> sum;
     sum -> out;
+	sum -> fout;
 }
 

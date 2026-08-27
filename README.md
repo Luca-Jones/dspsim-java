@@ -20,11 +20,11 @@ make test # run JUnit tests
 Arguments: `<graph.dot> [iterations]`
 
 ```sh
-java -cp bin Main examples/fir.dot 8
+java -cp bin Main examples/integrator.dot 8
 ```
 or
 ```sh
-java -jar dspflow.jar examples/fir.dot 8
+java -jar dspflow.jar examples/integrator.dot 8
 ```
 
 Once you have run the simulation and the data you care about got dumped into a
@@ -58,12 +58,14 @@ digraph {
     in [type="impulse"];
     delay [type="constant", value=1];
     sum [type="sum"];
-    out [type="dataout", file="/dev/stdout"];
+    out [type="dataout"];
+    fout [type="dataout", file="out.csv"];
 
     in -> sum;
     sum -> delay;
     delay -> sum;
     sum -> out;
+    sum -> fout;
 }
 ```
 
@@ -119,6 +121,7 @@ the following is ignored,
 
 ## Citations
 
-- E. A. Lee and D. G. Messerschmitt, "Synchronous data flow," in Proceedings of the IEEE, vol. 75, no. 9, pp. 1235-1245, Sept. 1987, doi: 10.1109/PROC.1987.13876. keywords: {Digital signal processing;Signal processing;Hardware;Flow graphs;Processor scheduling;Runtime;Scheduling algorithm;Software systems;Assembly systems;Microcomputers},
-- E. A. Lee and D. G. Messerschmitt, "Static Scheduling of Synchronous Data Flow Programs for Digital Signal Processing," in IEEE Transactions on Computers, vol. C-36, no. 1, pp. 24-35, Jan. 1987, doi: 10.1109/TC.1987.5009446. keywords: {Signal processing;Topology;Schedules;Programming;Processor scheduling;Digital signal processing;Runtime;Block diagram;computation graphs;data flow digital signal processing;hard real-time systems;multiprocessing;Petri nets;static scheduling;synchronous data flow},
+[1] E. A. Lee and D. G. Messerschmitt, "Synchronous data flow," in Proceedings of the IEEE, vol. 75, no. 9, pp. 1235-1245, Sept. 1987, doi: 10.1109/PROC.1987.13876. keywords: {Digital signal processing;Signal processing;Hardware;Flow graphs;Processor scheduling;Runtime;Scheduling algorithm;Software systems;Assembly systems;Microcomputers},
+
+[2] E. A. Lee and D. G. Messerschmitt, "Static Scheduling of Synchronous Data Flow Programs for Digital Signal Processing," in IEEE Transactions on Computers, vol. C-36, no. 1, pp. 24-35, Jan. 1987, doi: 10.1109/TC.1987.5009446. keywords: {Signal processing;Topology;Schedules;Programming;Processor scheduling;Digital signal processing;Runtime;Block diagram;computation graphs;data flow digital signal processing;hard real-time systems;multiprocessing;Petri nets;static scheduling;synchronous data flow},
 
