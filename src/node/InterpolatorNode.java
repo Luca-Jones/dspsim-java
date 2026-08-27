@@ -35,8 +35,8 @@ public class InterpolatorNode implements Node {
 	public void checkWiring(int in, int out) throws InvalidWiringException {
 		if (in != 1)
 			throw new InvalidWiringException("should take exactly 1 input, takes " + in);
-		if (out != 1)
-			throw new InvalidWiringException("should give exactly 1 output, gives " + out);
+		if (out < 1)
+			throw new InvalidWiringException("should give at least 1 output, gives " + out);
 	}
 }
 

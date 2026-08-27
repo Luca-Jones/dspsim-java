@@ -21,8 +21,8 @@ public class LShiftNode implements Node {
 	public void checkWiring(int in, int out) throws InvalidWiringException {
 		if (in != 1)
 			throw new InvalidWiringException("should take exactly one input, takes " + in);
-		if (out != 1)
-			throw new InvalidWiringException("should give exactly one output, gives " + out);
+		if (out < 1)
+			throw new InvalidWiringException("should give at least one output, gives " + out);
 	}
 }
 
