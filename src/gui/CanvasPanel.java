@@ -191,14 +191,24 @@ public class CanvasPanel extends JPanel {
 		return list;
 	}
 
-	/** Input dots: fixed for ONE/TWO; for sum, the wired inputs plus one spare. */
+	/** Input dots: fixed for ONE/TWO; for sum, the configured "inputs" count,
+	 *  growing further (wired plus one spare) as more wires arrive. */
 	private int inputCount(Block b) {
 		return switch (b.type.inArity) {
 			case NONE -> 0;
 			case ONE -> 1;
 			case TWO -> 2;
-			case MANY -> Math.max(2, diagram.wiresInto(b).size() + 1);
+			case MANY -> Math.max(Math.max(2, configuredInputs(b)),
+					diagram.wiresInto(b).size() + 1);
 		};
+	}
+
+	private static int configuredInputs(Block b) {
+		try {
+			return Integer.parseInt(b.params.getOrDefault("inputs", "").trim());
+		} catch (NumberFormatException e) {
+			return 2;
+		}
 	}
 
 	private Anchor inputAnchor(Block b, int slot) {
@@ -346,9 +356,15 @@ public class CanvasPanel extends JPanel {
 		g2.draw(rect);
 
 		g2.setColor(theme.glyph);
-		g2.setFont(getFont().deriveFont(Font.BOLD, 20f));
-		FontMetrics fm = g2.getFontMetrics();
-		String glyph = b.type.glyph;
+		String glyph = b.type.glyph(b);
+		Font glyphFont = getFont().deriveFont(Font.BOLD, 20f);
+		FontMetrics fm = g2.getFontMetrics(glyphFont);
+		int maxWidth = Block.W - 12;
+		if (fm.stringWidth(glyph) > maxWidth)
+			glyphFont = glyphFont.deriveFont(
+					Math.max(10f, 20f * maxWidth / fm.stringWidth(glyph)));
+		g2.setFont(glyphFont);
+		fm = g2.getFontMetrics();
 		g2.drawString(glyph,
 				b.x + (Block.W - fm.stringWidth(glyph)) / 2f,
 				b.y + (Block.H + fm.getAscent() - fm.getDescent()) / 2f);

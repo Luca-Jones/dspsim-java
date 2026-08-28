@@ -64,6 +64,8 @@ public class DotWriter {
 			sb.append('\t').append(nodeName(b));
 			sb.append(" [type=\"").append(b.type.dotType).append('"');
 			for (BlockType.Param p : b.type.params) {
+				if (!p.engine())
+					continue; // GUI-only setting, meaningless to the engine
 				String v = b.params.getOrDefault(p.key(), "").trim();
 				if (v.isEmpty())
 					continue; // engine applies its own default

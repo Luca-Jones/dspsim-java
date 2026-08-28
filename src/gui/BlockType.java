@@ -33,7 +33,8 @@ public enum BlockType {
 		"right shift by value bits",
 		Param.integer("value", true, "1")),
 	SUM("sum", "Σ", Category.MATH, InArity.MANY,
-		"adds all inputs (2 or more)"),
+		"adds all inputs (2 or more)",
+		Param.guiInt("inputs", "2")),
 	MULTIPLIER("multiplier", "×", Category.MATH, InArity.TWO,
 		"multiplies its two inputs"),
 
@@ -59,12 +60,16 @@ public enum BlockType {
 	/** How many wires the engine's checkWiring accepts into this node. */
 	public enum InArity { NONE, ONE, TWO, MANY }
 
-	public record Param(String key, boolean isInt, boolean required, String defaultValue) {
+	/** engine=false marks GUI-only settings that never reach the .dot file. */
+	public record Param(String key, boolean isInt, boolean required, String defaultValue, boolean engine) {
 		static Param integer(String key, boolean required, String def) {
-			return new Param(key, true, required, def);
+			return new Param(key, true, required, def, true);
 		}
 		static Param string(String key, boolean required, String def) {
-			return new Param(key, false, required, def);
+			return new Param(key, false, required, def, true);
+		}
+		static Param guiInt(String key, String def) {
+			return new Param(key, true, false, def, false);
 		}
 	}
 
@@ -83,6 +88,39 @@ public enum BlockType {
 		this.inArity = inArity;
 		this.description = description;
 		this.params = List.of(params);
+	}
+
+	/** Glyph drawn in the block, folding in the primary parameter value. */
+	public String glyph(Block b) {
+		if (params.isEmpty())
+			return glyph;
+		String v = b.params.getOrDefault(params.get(0).key(), "").trim();
+		if (v.isEmpty())
+			return glyph;
+		return switch (this) {
+			case CONSTANT -> v;
+			case GAIN -> "×" + v;
+			case LSHIFT -> "≪" + v;
+			case RSHIFT -> "≫" + v;
+			case DELAY -> "z" + superscript("-" + v);
+			case DECIMATOR -> "↓" + v;
+			case INTERPOLATOR -> "↑" + v;
+			case HOLD -> "S/H " + v;
+			default -> glyph;
+		};
+	}
+
+	private static String superscript(String s) {
+		StringBuilder b = new StringBuilder();
+		for (char c : s.toCharArray())
+			b.append(switch (c) {
+				case '-' -> '⁻';
+				case '1' -> '¹';
+				case '2' -> '²';
+				case '3' -> '³';
+				default -> c >= '0' && c <= '9' ? (char) ('⁰' + (c - '0')) : c;
+			});
+		return b.toString();
 	}
 
 	public boolean isSource() { return inArity == InArity.NONE; }
