@@ -172,9 +172,10 @@ public class NodeTest {
 	void gainWiring() {
 		GainNode n = new GainNode(3);
 		assertDoesNotThrow(() -> n.checkWiring(1, 1));
+		assertDoesNotThrow(() -> n.checkWiring(1, 2));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(0, 1));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(2, 1));
-		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 2));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 0));
 	}
 
 	// ---------- Sum ----------
@@ -342,8 +343,9 @@ public class NodeTest {
 	void interpolatorWiring() {
 		InterpolatorNode n = new InterpolatorNode(2);
 		assertDoesNotThrow(() -> n.checkWiring(1, 1));
+		assertDoesNotThrow(() -> n.checkWiring(1, 2));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(0, 1));
-		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 2));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 0));
 	}
 
 	// ---------- DataIn ----------

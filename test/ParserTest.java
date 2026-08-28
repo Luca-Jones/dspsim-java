@@ -164,8 +164,9 @@ public class ParserTest {
 	}
 
 	@Test
-	void bareNameAsAttributeValueThrows() {
-		assertThrows(RuntimeException.class, () -> parse("digraph { a [type=impulse]; }"));
+	void bareNameIsAllowedAsAttributeValue() {
+		GraphConfig gc = parse("digraph { a [type=impulse]; }");
+		assertEquals(Map.of("type", "impulse"), gc.vertexConfigs().get(0).attributes());
 	}
 
 	@Test
