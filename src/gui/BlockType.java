@@ -92,6 +92,10 @@ public enum BlockType {
 
 	/** Glyph drawn in the block, folding in the primary parameter value. */
 	public String glyph(Block b) {
+		if (this == DATAOUT) {
+			String file = b.params.getOrDefault("file", "").trim();
+			return file.isEmpty() ? "stdout" : file;
+		}
 		if (params.isEmpty())
 			return glyph;
 		String v = b.params.getOrDefault(params.get(0).key(), "").trim();
@@ -106,6 +110,7 @@ public enum BlockType {
 			case DECIMATOR -> "↓" + v;
 			case INTERPOLATOR -> "↑" + v;
 			case HOLD -> "S/H " + v;
+			case DATAIN -> v;
 			default -> glyph;
 		};
 	}
