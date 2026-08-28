@@ -53,6 +53,8 @@ public class PropertyDialog extends JDialog {
 			BlockType.Param p = block.type.params.get(i);
 			String label = p.key() + (p.required() ? " *" : "");
 			paramFields[i] = addRow(grid, gc, row++, label, block.params.getOrDefault(p.key(), ""));
+			if (!diagram.macros.isEmpty())
+				paramFields[i].setToolTipText("Macros: " + String.join(", ", diagram.macros.keySet()));
 		}
 
 		JButton ok = new JButton("OK");
@@ -96,7 +98,7 @@ public class PropertyDialog extends JDialog {
 		for (int i = 0; i < paramFields.length; i++) {
 			BlockType.Param p = block.type.params.get(i);
 			String v = paramFields[i].getText().trim();
-			if (!v.isEmpty() && p.isInt()) {
+			if (!v.isEmpty() && p.isInt() && !diagram.macros.containsKey(v)) {
 				try {
 					Integer.parseInt(v);
 				} catch (NumberFormatException e) {

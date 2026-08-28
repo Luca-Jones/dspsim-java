@@ -108,6 +108,10 @@ public class MainFrame extends JFrame {
 		}));
 		mb.add(file);
 
+		JMenu edit = new JMenu("Edit");
+		edit.add(item("Macros…", 0, e -> editMacros()));
+		mb.add(edit);
+
 		JMenu sim = new JMenu("Simulate");
 		sim.add(item("Compile & Run", KeyEvent.VK_R, e -> runSim()));
 		mb.add(sim);
@@ -228,6 +232,13 @@ public class MainFrame extends JFrame {
 	private void refreshTitle() {
 		setTitle("dspsim — " + (currentFile == null ? "untitled" : currentFile.getName())
 				+ (diagram.dirty ? " *" : ""));
+	}
+
+	private void editMacros() {
+		if (MacroDialog.edit(this, diagram)) {
+			touch();
+			setStatus("Updated macros.");
+		}
 	}
 
 	// ---- file actions ------------------------------------------------------

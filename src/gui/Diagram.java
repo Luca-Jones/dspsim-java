@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +16,7 @@ import java.util.Map;
  * connect time, and a line-based save format (extension .dsg):
  *
  *   DSPSIM 1
+ *   MACRO <name>=<value>
  *   BLOCK <id> <dotType> <x> <y> <name>
  *   P <key>=<value>          (attaches to the preceding BLOCK)
  *   WIRE <srcId> <dstId>
@@ -23,6 +25,10 @@ public class Diagram {
 
 	public final List<Block> blocks = new ArrayList<>();
 	public final List<Wire> wires = new ArrayList<>();
+	/** Named constants exported as "#define NAME value" in the .dot file. A
+	 *  param field that names one of these is written as a bare identifier
+	 *  (the macro) instead of a literal, so many blocks can share one knob. */
+	public final LinkedHashMap<String, String> macros = new LinkedHashMap<>();
 	public boolean dirty = false;
 	private int nextId = 1;
 
@@ -109,6 +115,8 @@ public class Diagram {
 	public void save(File f) throws IOException {
 		try (PrintWriter pw = new PrintWriter(f)) {
 			pw.println("DSPSIM 1");
+			for (Map.Entry<String, String> e : macros.entrySet())
+				pw.println("MACRO " + e.getKey() + "=" + e.getValue());
 			for (Block b : blocks) {
 				pw.println("BLOCK " + b.id + " " + b.type.dotType + " "
 						+ b.x + " " + b.y + " " + b.name);
@@ -130,7 +138,12 @@ public class Diagram {
 			String line;
 			while ((line = br.readLine()) != null) {
 				line = line.trim();
-				if (line.startsWith("BLOCK ")) {
+				if (line.startsWith("MACRO ")) {
+					String kv = line.substring(6);
+					int eq = kv.indexOf('=');
+					if (eq > 0)
+						d.macros.put(kv.substring(0, eq).trim(), kv.substring(eq + 1).trim());
+				} else if (line.startsWith("BLOCK ")) {
 					String[] t = line.split("\\s+");
 					BlockType type = BlockType.fromDotType(t[2]);
 					if (type == null)
