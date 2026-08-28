@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class InterpolatorNode implements Node {
@@ -13,10 +14,10 @@ public class InterpolatorNode implements Node {
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs.size() != 1)
 			throw new IllegalArgumentException();
-		Integer out = (phase == 0) ? inputs.getFirst() : 0;
+		BigInteger out = (phase == 0) ? inputs.getFirst() : BigInteger.ZERO;
 		phase = (phase + 1) % ratio;
 		return out;
 	}

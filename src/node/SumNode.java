@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class SumNode implements Node {
@@ -7,10 +8,10 @@ public class SumNode implements Node {
 	public SumNode() {}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs == null || inputs.size() < 2)
 			throw new IllegalArgumentException();
-		return inputs.stream().reduce(0, Integer::sum);
+		return inputs.stream().reduce(BigInteger.ZERO, BigInteger::add);
 	}
 
 	@Override

@@ -2,6 +2,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -31,20 +32,20 @@ public class SDFGraphTest {
 		return SDFGraph.loadFromFile(dotFile.toString());
 	}
 
-	private List<Integer> run(String dot, int iterations) throws IOException {
+	private List<BigInteger> run(String dot, int iterations) throws IOException {
 		load(dot).run(iterations);
 		return output();
 	}
 
-	private List<Integer> output() throws IOException {
+	private List<BigInteger> output() throws IOException {
 		return output("out.csv");
 	}
 
-	private List<Integer> output(String name) throws IOException {
+	private List<BigInteger> output(String name) throws IOException {
 		return Files.readAllLines(tmp.resolve(name)).stream()
 			.map(s -> s.replace(",", "").trim())
 			.filter(s -> !s.isEmpty())
-			.map(Integer::parseInt)
+			.map(BigInteger::new)
 			.toList();
 	}
 
@@ -56,7 +57,7 @@ public class SDFGraphTest {
 
 	@Test
 	void constantThroughGain() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="constant", value=2];
 				g [type="gain", value=5];
@@ -65,36 +66,36 @@ public class SDFGraphTest {
 				g -> out;
 			}
 			""", 3);
-		assertEquals(List.of(10, 10, 10), out);
+		assertEquals(List.of(BigInteger.valueOf(10), BigInteger.valueOf(10), BigInteger.valueOf(10)), out);
 	}
 
 	@Test
 	void impulseStraightToOutput() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				out [type="dataout", file="%OUT%"];
 				in -> out;
 			}
 			""", 4);
-		assertEquals(List.of(1, 0, 0, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0)), out);
 	}
 
 	@Test
 	void sineStraightToOutput() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="sine", amplitude=10, period=4];
 				out [type="dataout", file="%OUT%"];
 				in -> out;
 			}
 			""", 4);
-		assertEquals(List.of(0, 10, 0, -10), out);
+		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(10), BigInteger.valueOf(0), BigInteger.valueOf(-10)), out);
 	}
 
 	@Test
 	void sumOfThreeConstants() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				a [type="constant", value=1];
 				b [type="constant", value=2];
@@ -105,12 +106,12 @@ public class SDFGraphTest {
 				s -> out;
 			}
 			""", 2);
-		assertEquals(List.of(6, 6), out);
+		assertEquals(List.of(BigInteger.valueOf(6), BigInteger.valueOf(6)), out);
 	}
 
 	@Test
 	void multiplierOfTwoConstants() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				a [type="constant", value=3];
 				b [type="constant", value=-4];
@@ -120,12 +121,12 @@ public class SDFGraphTest {
 				m -> out;
 			}
 			""", 2);
-		assertEquals(List.of(-12, -12), out);
+		assertEquals(List.of(BigInteger.valueOf(-12), BigInteger.valueOf(-12)), out);
 	}
 
 	@Test
 	void fanOutFeedsBothBranches() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				g2 [type="gain", value=2];
@@ -137,14 +138,14 @@ public class SDFGraphTest {
 				s -> out;
 			}
 			""", 3);
-		assertEquals(List.of(5, 0, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(5), BigInteger.valueOf(0), BigInteger.valueOf(0)), out);
 	}
 
 	// ---------- delays and feedback ----------
 
 	@Test
 	void delayShiftsImpulseByOne() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				d [type="delay"];
@@ -153,12 +154,12 @@ public class SDFGraphTest {
 				d -> out;
 			}
 			""", 4);
-		assertEquals(List.of(0, 1, 0, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(0)), out);
 	}
 
 	@Test
 	void delayOfThreeShiftsImpulseByThree() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				d [type="delay", delay=3];
@@ -167,13 +168,13 @@ public class SDFGraphTest {
 				d -> out;
 			}
 			""", 5);
-		assertEquals(List.of(0, 0, 0, 1, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(0)), out);
 	}
 
 	@Test
 	void chainedDelaysAccumulate() throws IOException {
 		// constant 1 through delay(1) + delay(2) = total shift of 3
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="constant", value=1];
 				d1 [type="delay"];
@@ -184,13 +185,13 @@ public class SDFGraphTest {
 				d2 -> out;
 			}
 			""", 6);
-		assertEquals(List.of(0, 0, 0, 1, 1, 1), out);
+		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)), out);
 	}
 
 	@Test
 	void accumulatorFeedbackLoop() throws IOException {
 		// classic 1/(1-z^-1) integrator: running sum of a constant 1
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="constant", value=1];
 				sum [type="sum"];
@@ -202,13 +203,13 @@ public class SDFGraphTest {
 				sum -> out;
 			}
 			""", 5);
-		assertEquals(List.of(1, 2, 3, 4, 5), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2), BigInteger.valueOf(3), BigInteger.valueOf(4), BigInteger.valueOf(5)), out);
 	}
 
 	@Test
 	void impulseIntoAccumulatorWithGain() throws IOException {
 		// impulse integrates to a constant 1, gain -2 -> constant -2
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				s [type="sum"];
@@ -222,7 +223,7 @@ public class SDFGraphTest {
 				g -> out;
 			}
 			""", 4);
-		assertEquals(List.of(-2, -2, -2, -2), out);
+		assertEquals(List.of(BigInteger.valueOf(-2), BigInteger.valueOf(-2), BigInteger.valueOf(-2), BigInteger.valueOf(-2)), out);
 	}
 
 	private static final String FIR_DOT = """
@@ -245,14 +246,14 @@ public class SDFGraphTest {
 
 	@Test
 	void firFilterImpulseResponseIsItsTaps() throws IOException {
-		assertEquals(List.of(2, 4, 6, 8, 0, 0), run(FIR_DOT, 6));
+		assertEquals(List.of(BigInteger.valueOf(2), BigInteger.valueOf(4), BigInteger.valueOf(6), BigInteger.valueOf(8), BigInteger.valueOf(0), BigInteger.valueOf(0)), run(FIR_DOT, 6));
 	}
 
 	// ---------- multirate ----------
 
 	@Test
 	void interpolatorZeroStuffs() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				up [type="interpolator", ratio=3];
@@ -261,13 +262,13 @@ public class SDFGraphTest {
 				up -> out;
 			}
 			""", 2);
-		assertEquals(List.of(1, 0, 0, 0, 0, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0)), out);
 	}
 
 	@Test
 	void decimatorByTwoKeepsEveryOtherSample() throws IOException {
 		writeInput("10\n1\n20\n2\n30\n3\n");
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="datain", file="%IN%"];
 				down [type="decimator", ratio=2];
@@ -276,13 +277,13 @@ public class SDFGraphTest {
 				down -> out;
 			}
 			""", 3);
-		assertEquals(List.of(10, 20, 30), out);
+		assertEquals(List.of(BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30)), out);
 	}
 
 	@Test
 	void interpolatorThenDecimator() throws IOException {
 		// up by 4 then down by 2: net rate x2, one output sample kept per pair
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				up [type="interpolator", ratio=4];
@@ -293,7 +294,7 @@ public class SDFGraphTest {
 				down -> out;
 			}
 			""", 2);
-		assertEquals(List.of(1, 0, 0, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0)), out);
 	}
 
 	// ---------- file I/O ----------
@@ -301,7 +302,7 @@ public class SDFGraphTest {
 	@Test
 	void dataInThroughGainPadsZerosPastEof() throws IOException {
 		writeInput("1\n2\n3\n");
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="datain", file="%IN%"];
 				g [type="gain", value=2];
@@ -310,20 +311,20 @@ public class SDFGraphTest {
 				g -> out;
 			}
 			""", 5);
-		assertEquals(List.of(2, 4, 6, 0, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(2), BigInteger.valueOf(4), BigInteger.valueOf(6), BigInteger.valueOf(0), BigInteger.valueOf(0)), out);
 	}
 
 	@Test
 	void dataInSkipsCsvHeader() throws IOException {
 		writeInput("time,value\n7, 0\n8, 0\n");
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="datain", file="%IN%"];
 				out [type="dataout", file="%OUT%"];
 				in -> out;
 			}
 			""", 2);
-		assertEquals(List.of(7, 8), out);
+		assertEquals(List.of(BigInteger.valueOf(7), BigInteger.valueOf(8)), out);
 	}
 
 	@Test
@@ -361,7 +362,7 @@ public class SDFGraphTest {
 		g.run(2);
 		g.run(2);
 		// both runs should start with a fresh impulse
-		assertEquals(List.of(1, 0, 1, 0), output());
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(0)), output());
 	}
 
 	// ---------- load-time errors ----------
@@ -598,7 +599,7 @@ public class SDFGraphTest {
 	@Test
 	void cascadedDecimatorsKeepEveryFourthSample() throws IOException {
 		writeInput("1\n2\n3\n4\n5\n6\n7\n8\n");
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="datain", file="%IN%"];
 				downA [type="decimator", ratio=2];
@@ -609,14 +610,14 @@ public class SDFGraphTest {
 				downB -> out;
 			}
 			""", 2);
-		assertEquals(List.of(1, 5), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(5)), out);
 	}
 
 	@Test
 	void interpolatorDecimatorPairInsideFeedbackLoopAccumulates() throws IOException {
 		// net rate 1 around the loop: up zero-stuffs [x, 0], down keeps x,
 		// so the loop is the plain accumulator and the impulse integrates to 1
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				s [type="sum"];
@@ -632,12 +633,12 @@ public class SDFGraphTest {
 				s -> out;
 			}
 			""", 4);
-		assertEquals(List.of(1, 1, 1, 1), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)), out);
 	}
 
 	@Test
 	void multipleDataOutNodesWriteIndependently() throws IOException {
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				up [type="interpolator", ratio=2];
@@ -648,9 +649,9 @@ public class SDFGraphTest {
 				up -> out2;
 			}
 			""", 2);
-		assertEquals(List.of(1, 0), out);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0)), out);
 		// out2 sits on the multirate branch and fires twice per iteration
-		assertEquals(List.of(1, 0, 0, 0), output("out2.csv"));
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0)), output("out2.csv"));
 	}
 
 	// ---------- schedule determinism ----------
@@ -660,25 +661,25 @@ public class SDFGraphTest {
 		// Digraph.getVertices() is a HashSet, so schedule order can differ
 		// per load; bus FIFO order must keep the output invariant anyway
 		for (int i = 0; i < 5; i++)
-			assertEquals(List.of(2, 4, 6, 8, 0, 0), run(FIR_DOT, 6), "load #" + i);
+			assertEquals(List.of(BigInteger.valueOf(2), BigInteger.valueOf(4), BigInteger.valueOf(6), BigInteger.valueOf(8), BigInteger.valueOf(0), BigInteger.valueOf(0)), run(FIR_DOT, 6), "load #" + i);
 	}
 
 	// ---------- overflow and nonsensical parameters ----------
 
 	@Test
-	void gainOverflowWrapsSilently() throws IOException {
-		// as-documented: plain int arithmetic, 2 * Integer.MAX_VALUE wraps
-		// to -2 with no error (sum and multiplier wrap the same way)
-		List<Integer> out = run("""
+	void gainDoesNotOverflowBeyondLongRange() throws IOException {
+		// data values are BigInteger, so arithmetic that would overflow a
+		// long (let alone an int) is still computed exactly, with no wrapping
+		List<BigInteger> out = run("""
 			digraph {
-				in [type="constant", value=2147483647];
+				in [type="constant", value=99999999999999999999999999];
 				g [type="gain", value=2];
 				out [type="dataout", file="%OUT%"];
 				in -> g;
 				g -> out;
 			}
 			""", 1);
-		assertEquals(List.of(-2), out);
+		assertEquals(List.of(new BigInteger("199999999999999999999999998")), out);
 	}
 
 	@Test
@@ -686,7 +687,7 @@ public class SDFGraphTest {
 		// quirk pinned as-is: outputRate 0 gives everything downstream
 		// multiplicity 0, so dataout never fires and the file stays empty
 		// (negative ratios behave the same way)
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="impulse"];
 				up [type="interpolator", ratio=0];
@@ -742,7 +743,7 @@ public class SDFGraphTest {
 				g -> out;
 			}
 			""").run(3);
-		List<Integer> out = run("""
+		List<BigInteger> out = run("""
 			digraph {
 				in [type="datain", file="%IN%"];
 				g [type="gain", value=2];
@@ -751,7 +752,7 @@ public class SDFGraphTest {
 				g -> out;
 			}
 			""", 3);
-		assertEquals(List.of(20, 20, 20), out);
+		assertEquals(List.of(BigInteger.valueOf(20), BigInteger.valueOf(20), BigInteger.valueOf(20)), out);
 	}
 
 	// ---------- big-graph sanity ----------
@@ -765,6 +766,6 @@ public class SDFGraphTest {
 		for (int i = 0; i < 199; i++)
 			dot.append("\tg").append(i).append(" -> g").append(i + 1).append(";\n");
 		dot.append("\tg199 -> out;\n}\n");
-		assertEquals(List.of(1, 0, 0), run(dot.toString(), 3));
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(0)), run(dot.toString(), 3));
 	}
 }

@@ -1,9 +1,10 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public interface Node {
-	Integer evaluate (List<Integer> inputs);
+	BigInteger evaluate (List<BigInteger> inputs);
 	default int inputRate() { return 1; }
 	default int outputRate() { return 1; }
 	default void reset() {}

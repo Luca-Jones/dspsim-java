@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class LShiftNode implements Node {
@@ -11,10 +12,10 @@ public class LShiftNode implements Node {
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 	    if (inputs.size() != 1)
 			throw new IllegalArgumentException("LShiftNode takes exactly 1 input, " + inputs.size() + " were given.");
-		return inputs.getFirst() << shift;
+		return inputs.getFirst().shiftLeft(shift);
 	}
 
 	@Override

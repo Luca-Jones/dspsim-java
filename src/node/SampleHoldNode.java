@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class SampleHoldNode implements Node {
@@ -11,7 +12,7 @@ public class SampleHoldNode implements Node {
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs.size() != 1)
 			throw new IllegalArgumentException();
 		return inputs.getFirst();

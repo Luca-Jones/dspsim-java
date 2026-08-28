@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class ImpulseNode implements Node {
@@ -11,14 +12,14 @@ public class ImpulseNode implements Node {
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (!inputs.isEmpty())
 			throw new IllegalArgumentException();
 		if (t0) {
 			t0 = false;
-			return 1;
+			return BigInteger.ONE;
 		}
-		return 0;
+		return BigInteger.ZERO;
 	}
 
 	@Override

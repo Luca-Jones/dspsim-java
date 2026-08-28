@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class MultiplierNode implements Node {
@@ -7,10 +8,10 @@ public class MultiplierNode implements Node {
 	public MultiplierNode() {}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs == null || inputs.size() != 2)
 			throw new IllegalArgumentException();
-		return inputs.get(0) * inputs.get(1);
+		return inputs.get(0).multiply(inputs.get(1));
 	}
 
 	@Override

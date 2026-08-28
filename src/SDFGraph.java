@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -25,7 +26,7 @@ public class SDFGraph {
 	private Digraph<Node> graph;
 	private Map<Node, Integer> multiplicities;
 	private List<Node> schedule;
-	private PairMap<Node, Queue<Integer>> buses;
+	private PairMap<Node, Queue<BigInteger>> buses;
 
 	private SDFGraph(GraphConfig gc) {
 		NodeFactory factory = new NodeFactory();
@@ -193,7 +194,7 @@ public class SDFGraph {
 	}
 
 	private void tick() {
-		List<Integer> inputs = new ArrayList<>();
+		List<BigInteger> inputs = new ArrayList<>();
 		for (Node node : schedule) {
 			inputs.clear();
 			for (Node parent : graph.getParents(node)) {
@@ -202,7 +203,7 @@ public class SDFGraph {
 				}
 			}
 			for (int i = 0; i < node.outputRate(); i++) {
-				Integer output = node.evaluate(inputs);
+				BigInteger output = node.evaluate(inputs);
 				for (Node child : graph.getChildren(node)) {
 					buses.get(node, child).add(output);
 				}
@@ -217,7 +218,7 @@ public class SDFGraph {
 				buses.get(node, child).clear();
 				if (node instanceof DelayNode d) {
 					for (int i = 0; i < d.delay; i++) {
-						buses.get(node, child).add(0);
+						buses.get(node, child).add(BigInteger.ZERO);
 					}
 				}
 			}
