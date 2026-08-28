@@ -13,7 +13,7 @@ import graph.*;
  * bus     := NAME ARROW NAME SEMICOLON
  * attrs   := LBRACKET ( prop (";"|"," prop)* )? RBRACKET
  * prop    := NAME "=" value
- * value   := NUMBER | STRING
+ * value   := NUMBER | STRING | NAME
  * */
 public class Parser {
 
@@ -75,8 +75,10 @@ public class Parser {
 		String value;
 		if (peek().type() == TokenType.NUMBER)
 			value = expect(TokenType.NUMBER).text();
-		else
+		else if(peek().type() == TokenType.STRING)
 			value = expect(TokenType.STRING).text();
+		else
+			value = expect(TokenType.NAME).text();
 		return value;
 	}
 
