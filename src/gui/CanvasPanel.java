@@ -38,6 +38,7 @@ import javax.swing.SwingUtilities;
  * The drawing surface. Interactions (dspflow-style):
  *  - palette stamp tool: click to place, Shift stamps several, Esc cancels
  *  - drag port dot to port dot (either direction) to wire
+ *  - Shift/Ctrl+click adds or removes blocks from the selection
  *  - left-drag block moves selection, left-drag empty pans, middle-drag pans
  *  - right-drag rubber-band selects, right-click context menu
  *  - Ctrl+wheel zooms about the cursor, wheel scrolls, Shift+wheel horizontal
@@ -116,6 +117,9 @@ public class CanvasPanel extends JPanel {
 	private Point2D pressModel;
 	private final LinkedHashMap<Block, Point> moveOrigins = new LinkedHashMap<>();
 	private boolean moved = false;
+	/** Already-selected block Shift/Ctrl-clicked on press; deselected on
+	 *  release unless the press turned into a group drag. */
+	private Block pressToggle = null;
 	private Anchor wireFrom = null;
 	private Point2D wireTo = null;
 	private Rectangle2D band = null;
@@ -125,6 +129,7 @@ public class CanvasPanel extends JPanel {
 	private record ClipWire(int src, int dst) {}
 	private List<ClipBlock> clipBlocks = List.of();
 	private List<ClipWire> clipWires = List.of();
+	private int pasteCount = 0;
 
 	public CanvasPanel(MainFrame frame, Diagram diagram) {
 		this.frame = frame;
@@ -425,6 +430,7 @@ public class CanvasPanel extends JPanel {
 			pressScreen = e.getPoint();
 			pressModel = toModel(e.getPoint());
 			moved = false;
+			pressToggle = null;
 
 			if (SwingUtilities.isMiddleMouseButton(e)) {
 				drag = Drag.PAN;
@@ -471,9 +477,9 @@ public class CanvasPanel extends JPanel {
 			Block b = blockAt(pressModel);
 			if (b != null) {
 				selectedWire = null;
-				if (e.isControlDown()) {
-					if (!selection.remove(b))
-						selection.add(b);
+				if (e.isShiftDown() || e.isControlDown()) {
+					if (!selection.add(b))
+						pressToggle = b; // toggle off on release, unless dragged
 				} else if (!selection.contains(b)) {
 					selection.clear();
 					selection.add(b);
@@ -493,7 +499,7 @@ public class CanvasPanel extends JPanel {
 				repaint();
 				return;
 			}
-			if (!e.isControlDown()) {
+			if (!e.isControlDown() && !e.isShiftDown()) {
 				selection.clear();
 				selectedWire = null;
 			}
@@ -548,11 +554,14 @@ public class CanvasPanel extends JPanel {
 					if (moved) {
 						diagram.dirty = true;
 						frame.touch();
+					} else if (pressToggle != null) {
+						selection.remove(pressToggle);
 					}
+					pressToggle = null;
 				}
 				case BAND -> {
 					if (band != null) {
-						if (!e.isControlDown())
+						if (!e.isControlDown() && !e.isShiftDown())
 							selection.clear();
 						for (Block b : diagram.blocks)
 							if (band.intersects(b.x, b.y, Block.W, Block.H))
@@ -671,12 +680,8 @@ public class CanvasPanel extends JPanel {
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete");
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete");
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "escape");
-		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_DOWN_MASK), "copy");
-		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_DOWN_MASK), "paste");
 		am.put("delete", action(this::deleteSelection));
 		am.put("escape", action(this::escape));
-		am.put("copy", action(this::copySelection));
-		am.put("paste", action(this::paste));
 	}
 
 	private AbstractAction action(Runnable r) {
@@ -713,9 +718,13 @@ public class CanvasPanel extends JPanel {
 		repaint();
 	}
 
-	private void copySelection() {
-		if (selection.isEmpty())
+	/** Copies the selected blocks (and the wires between them) to an internal
+	 *  clipboard. Ctrl+C via the Edit menu accelerator. */
+	public void copySelection() {
+		if (selection.isEmpty()) {
+			frame.setStatus("Nothing selected — Shift+click or right-drag to select blocks.");
 			return;
+		}
 		List<Block> ordered = new ArrayList<>(selection);
 		List<ClipBlock> cb = new ArrayList<>();
 		for (Block b : ordered)
@@ -728,15 +737,21 @@ public class CanvasPanel extends JPanel {
 		}
 		clipBlocks = cb;
 		clipWires = cw;
+		pasteCount = 0;
 		frame.setStatus("Copied " + cb.size() + " block" + (cb.size() == 1 ? "" : "s") + ".");
 	}
 
-	private void paste() {
-		if (clipBlocks.isEmpty())
+	/** Pastes the clipboard one grid step down-right of the copied blocks,
+	 *  leaving the new blocks selected. Ctrl+V via the Edit menu accelerator. */
+	public void paste() {
+		if (clipBlocks.isEmpty()) {
+			frame.setStatus("Clipboard is empty — copy some blocks first.");
 			return;
+		}
+		int off = GRID * ++pasteCount;
 		List<Block> pasted = new ArrayList<>();
 		for (ClipBlock c : clipBlocks) {
-			Block b = diagram.addBlock(c.type(), c.x() + GRID, c.y() + GRID);
+			Block b = diagram.addBlock(c.type(), c.x() + off, c.y() + off);
 			b.params.putAll(c.params());
 			pasted.add(b);
 		}

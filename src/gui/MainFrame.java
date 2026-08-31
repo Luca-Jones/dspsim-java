@@ -85,7 +85,8 @@ public class MainFrame extends JFrame {
 		status.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 		setStatus("Pick a block, click the canvas to place (Shift stamps several). "
 				+ "Drag port to port to wire. Left-drag pans, right-drag selects, "
-				+ "Ctrl+wheel zooms, Del deletes, Esc cancels.");
+				+ "Shift+click multi-selects, Ctrl+C/V copies, Ctrl+wheel zooms, "
+				+ "Del deletes, Esc cancels.");
 		add(status, BorderLayout.SOUTH);
 	}
 
@@ -109,6 +110,9 @@ public class MainFrame extends JFrame {
 		mb.add(file);
 
 		JMenu edit = new JMenu("Edit");
+		edit.add(item("Copy", KeyEvent.VK_C, e -> canvas.copySelection()));
+		edit.add(item("Paste", KeyEvent.VK_V, e -> canvas.paste()));
+		edit.addSeparator();
 		edit.add(item("Macros…", 0, e -> editMacros()));
 		mb.add(edit);
 
