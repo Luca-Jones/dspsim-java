@@ -28,6 +28,8 @@ public class NodeFactory implements VertexFactory<Node> {
 			case "sum" -> createSumNode();
 			case "multiplier" -> createMultiplierNode();
 			case "delay" -> createDelayNode(config.attributes());
+			case "integrator" -> createIntegratorNode();
+			case "comb" -> createCombNode(config.attributes());
 			case "decimator" -> createDecimatorNode(config.attributes());
 			case "interpolator" -> createInterpolatorNode(config.attributes());
 			case "hold" -> createSampleHoldNode(config.attributes());
@@ -96,6 +98,18 @@ public class NodeFactory implements VertexFactory<Node> {
 			return new DelayNode(delay);
 		}
 		return new DelayNode();
+	}
+
+	private static IntegratorNode createIntegratorNode() {
+		return new IntegratorNode();
+	}
+
+	private static CombNode createCombNode(Map<String, String> attrs) {
+		if (attrs.containsKey("value")) {
+			Integer value = Integer.parseInt(attrs.get("value"));
+			return new CombNode(value);
+		}
+		return new CombNode();
 	}
 
 	private static DecimatorNode createDecimatorNode(Map<String, String> attrs) {

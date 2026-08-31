@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import graph.VertexConfig;
+import node.CombNode;
 import node.ConstantNode;
 import node.DataInNode;
 import node.DataOutNode;
@@ -18,6 +19,7 @@ import node.DecimatorNode;
 import node.DelayNode;
 import node.GainNode;
 import node.ImpulseNode;
+import node.IntegratorNode;
 import node.InterpolatorNode;
 import node.MultiplierNode;
 import node.Node;
@@ -94,6 +96,32 @@ public class NodeFactoryTest {
 	@Test
 	void createsDelayWithExplicitDelay() {
 		assertEquals(4, ((DelayNode) make("delay", "delay", "4")).delay);
+	}
+
+	@Test
+	void createsIntegrator() {
+		Node n = make("integrator");
+		assertInstanceOf(IntegratorNode.class, n);
+		assertEquals(1, n.initialTokens());
+	}
+
+	@Test
+	void createsCombWithDefaultLengthOfOne() {
+		Node n = make("comb");
+		assertInstanceOf(CombNode.class, n);
+		// L=1: second output is x[1] - x[0]
+		n.evaluate(List.of(BigInteger.valueOf(3)));
+		assertEquals(BigInteger.valueOf(2), n.evaluate(List.of(BigInteger.valueOf(5))));
+	}
+
+	@Test
+	void createsCombWithExplicitLength() {
+		Node n = make("comb", "value", "2");
+		assertInstanceOf(CombNode.class, n);
+		// L=2: third output is x[2] - x[0]
+		n.evaluate(List.of(BigInteger.valueOf(3)));
+		n.evaluate(List.of(BigInteger.valueOf(4)));
+		assertEquals(BigInteger.valueOf(6), n.evaluate(List.of(BigInteger.valueOf(9))));
 	}
 
 	@Test

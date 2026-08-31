@@ -3,28 +3,27 @@ package node;
 import java.math.BigInteger;
 import java.util.List;
 
-public class DelayNode implements Node {
+/** Running sum with transfer function z^-1/(1-z^-1): y[n] = y[n-1] + x[n-1]. */
+public class IntegratorNode implements Node {
 
-	public final int delay;
-
-	public DelayNode() {
-		this(1);
-	}
-
-	public DelayNode(Integer delay) {
-		this.delay = delay;
-	}
+	private BigInteger acc = BigInteger.ZERO;
 
 	@Override
 	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs.size() != 1)
 			throw new IllegalArgumentException();
-		return inputs.getFirst();
+		acc = acc.add(inputs.getFirst());
+		return acc;
+	}
+
+	@Override
+	public void reset() {
+		acc = BigInteger.ZERO;
 	}
 
 	@Override
 	public int initialTokens() {
-		return delay;
+		return 1;
 	}
 
 	@Override
@@ -35,4 +34,3 @@ public class DelayNode implements Node {
 			throw new InvalidWiringException("should give at least 1 output, gives " + out);
 	}
 }
-

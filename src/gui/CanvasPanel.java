@@ -435,32 +435,63 @@ public class CanvasPanel extends JPanel {
 
 	/** Centers the glyph in the block. Text after '^' is drawn raised in a
 	 *  smaller font — a real superscript, so delay exponents render the same
-	 *  whether they are numbers or macro names. */
+	 *  whether they are numbers or macro names. A '⁄' (U+2044, distinct from
+	 *  the plain '/' in S/H) splits the glyph into a stacked fraction. */
 	private void paintGlyph(Graphics2D g2, Block b) {
 		String glyph = b.type.glyph(b);
-		int caret = glyph.indexOf('^');
-		String base = caret < 0 ? glyph : glyph.substring(0, caret);
-		String sup = caret < 0 ? "" : glyph.substring(caret + 1);
-		Font baseFont = getFont().deriveFont(Font.BOLD, 20f);
-		Font supFont = getFont().deriveFont(Font.BOLD, 13f);
-		FontMetrics bm = g2.getFontMetrics(baseFont);
-		FontMetrics sm = g2.getFontMetrics(supFont);
-		int width = bm.stringWidth(base) + sm.stringWidth(sup);
 		int maxWidth = Block.W - 12;
-		if (width > maxWidth) {
-			float scale = Math.max(10f, 20f * maxWidth / width) / 20f;
-			baseFont = baseFont.deriveFont(20f * scale);
-			supFont = supFont.deriveFont(13f * scale);
-			bm = g2.getFontMetrics(baseFont);
-			sm = g2.getFontMetrics(supFont);
-			width = bm.stringWidth(base) + sm.stringWidth(sup);
+		int frac = glyph.indexOf('⁄');
+		if (frac < 0) {
+			float size = fitSize(g2, glyph, 20f, maxWidth);
+			FontMetrics bm = g2.getFontMetrics(getFont().deriveFont(Font.BOLD, size));
+			float x = b.x + (Block.W - segmentWidth(g2, glyph, size)) / 2f;
+			float y = b.y + (Block.H + bm.getAscent() - bm.getDescent()) / 2f;
+			drawSegment(g2, glyph, size, x, y);
+			return;
 		}
-		float x = b.x + (Block.W - width) / 2f;
-		float y = b.y + (Block.H + bm.getAscent() - bm.getDescent()) / 2f;
+		String num = glyph.substring(0, frac);
+		String den = glyph.substring(frac + 1);
+		float size = Math.min(fitSize(g2, num, 13f, maxWidth), fitSize(g2, den, 13f, maxWidth));
+		FontMetrics bm = g2.getFontMetrics(getFont().deriveFont(Font.BOLD, size));
+		float cx = b.x + Block.W / 2f;
+		float cy = b.y + Block.H / 2f;
+		drawSegment(g2, num, size, cx - segmentWidth(g2, num, size) / 2f, cy - 4f - bm.getDescent());
+		drawSegment(g2, den, size, cx - segmentWidth(g2, den, size) / 2f, cy + 4f + bm.getAscent());
+		float barW = Math.min(Block.W - 8f,
+			Math.max(segmentWidth(g2, num, size), segmentWidth(g2, den, size)) + 6f);
+		g2.setStroke(new BasicStroke(1.2f));
+		g2.draw(new Line2D.Float(cx - barW / 2f, cy, cx + barW / 2f, cy));
+	}
+
+	/** Width of a base^sup segment at the given base font size. */
+	private float segmentWidth(Graphics2D g2, String seg, float size) {
+		int caret = seg.indexOf('^');
+		String base = caret < 0 ? seg : seg.substring(0, caret);
+		String sup = caret < 0 ? "" : seg.substring(caret + 1);
+		FontMetrics bm = g2.getFontMetrics(getFont().deriveFont(Font.BOLD, size));
+		FontMetrics sm = g2.getFontMetrics(getFont().deriveFont(Font.BOLD, size * 0.65f));
+		return bm.stringWidth(base) + sm.stringWidth(sup);
+	}
+
+	/** Largest size up to the given one at which the segment fits maxWidth,
+	 *  never shrinking below half so glyphs stay legible. */
+	private float fitSize(Graphics2D g2, String seg, float size, int maxWidth) {
+		float width = segmentWidth(g2, seg, size);
+		if (width <= maxWidth)
+			return size;
+		return Math.max(size / 2f, size * maxWidth / width);
+	}
+
+	private void drawSegment(Graphics2D g2, String seg, float size, float x, float y) {
+		int caret = seg.indexOf('^');
+		String base = caret < 0 ? seg : seg.substring(0, caret);
+		String sup = caret < 0 ? "" : seg.substring(caret + 1);
+		Font baseFont = getFont().deriveFont(Font.BOLD, size);
+		FontMetrics bm = g2.getFontMetrics(baseFont);
 		g2.setFont(baseFont);
 		g2.drawString(base, x, y);
 		if (!sup.isEmpty()) {
-			g2.setFont(supFont);
+			g2.setFont(baseFont.deriveFont(size * 0.65f));
 			g2.drawString(sup, x + bm.stringWidth(base), y - bm.getAscent() * 0.38f);
 		}
 	}

@@ -91,6 +91,8 @@ The `type` attribute selects the node (case-insensitive):
 | sum          |                                            | 2+     | 1       |
 | multiplier   |                                            | 2      | 1       |
 | delay        | int delay = 1                              | 1      | 1       |
+| integrator   |                                            | 1      | 1       |
+| comb         | int value = 1                              | 1      | 1       |
 | decimator    | int ratio                                  | 1      | 1       |
 | interpolator | int ratio                                  | 1      | 1       |
 | hold         | int ratio                                  | 1      | 1       |

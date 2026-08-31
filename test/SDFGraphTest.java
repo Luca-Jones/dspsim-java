@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import node.Node;
+import sim.SDFGraph;
 
 /**
  * End-to-end tests: write a .dot file, load it, run the simulation and
@@ -186,6 +187,53 @@ public class SDFGraphTest {
 			}
 			""", 6);
 		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)), out);
+	}
+
+	@Test
+	void integratorTurnsImpulseIntoDelayedStep() throws IOException {
+		// z^-1/(1-z^-1): y[n] = sum of all inputs before n
+		List<BigInteger> out = run("""
+			digraph {
+				in [type="impulse"];
+				i [type="integrator"];
+				out [type="dataout", file="%OUT%"];
+				in -> i;
+				i -> out;
+			}
+			""", 4);
+		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(1)), out);
+	}
+
+	@Test
+	void combSubtractsDelayedSignal() throws IOException {
+		// 1-z^-2: impulse minus impulse two samples later
+		List<BigInteger> out = run("""
+			digraph {
+				in [type="impulse"];
+				c [type="comb", value=2];
+				out [type="dataout", file="%OUT%"];
+				in -> c;
+				c -> out;
+			}
+			""", 4);
+		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(-1), BigInteger.valueOf(0)), out);
+	}
+
+	@Test
+	void integratorAndCombFormCicStage() throws IOException {
+		// z^-1/(1-z^-1) * (1-z^-2) = z^-1(1+z^-1): impulse -> 0,1,1,0
+		List<BigInteger> out = run("""
+			digraph {
+				in [type="impulse"];
+				i [type="integrator"];
+				c [type="comb", value=2];
+				out [type="dataout", file="%OUT%"];
+				in -> i;
+				i -> c;
+				c -> out;
+			}
+			""", 4);
+		assertEquals(List.of(BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(1), BigInteger.valueOf(0)), out);
 	}
 
 	@Test

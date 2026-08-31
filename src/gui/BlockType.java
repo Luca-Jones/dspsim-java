@@ -41,6 +41,11 @@ public enum BlockType {
 	DELAY("delay", "z^-1", Category.RATE, InArity.ONE,
 		"delays by n samples",
 		Param.integer("delay", false, "1")),
+	INTEGRATOR("integrator", "z^-1⁄1-z^-1", Category.RATE, InArity.ONE,
+		"accumulator: z^-1/(1-z^-1)"),
+	COMB("comb", "1-z^-L", Category.RATE, InArity.ONE,
+		"comb filter: 1-z^-L",
+		Param.integer("value", false, "1")),
 	DECIMATOR("decimator", "↓R", Category.RATE, InArity.ONE,
 		"keeps 1 of every ratio samples",
 		Param.integer("ratio", true, "2")),
@@ -109,6 +114,7 @@ public enum BlockType {
 			case LSHIFT -> "≪" + v;
 			case RSHIFT -> "≫" + v;
 			case DELAY -> "z^-" + v;
+			case COMB -> "1-z^-" + v;
 			case DECIMATOR -> "↓" + v;
 			case INTERPOLATOR -> "↑" + v;
 			case HOLD -> "S/H " + v;

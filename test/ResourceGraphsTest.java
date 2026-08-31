@@ -11,6 +11,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import sim.SDFGraph;
+
 /**
  * Runs the shipped example graphs in resources/ and checks their exact
  * output. These graphs print to stdout, which is captured per test.

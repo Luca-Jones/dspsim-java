@@ -1,0 +1,94 @@
+DSPSIM 1
+MACRO M=16
+MACRO L=1
+BLOCK 1 integrator -40 60 integrator1 S
+BLOCK 3 impulse -40 -60 impulse1 S
+BLOCK 4 dataout 1240 80 dataout1 E
+P file=boo.csv
+BLOCK 6 comb 1020 200 comb1 N
+P value=L
+BLOCK 9 integrator -40 300 integrator2 S
+BLOCK 10 integrator -40 420 integrator3 S
+BLOCK 11 comb 1020 320 comb2 N
+P value=L
+BLOCK 12 comb 1020 440 comb3 N
+P value=L
+BLOCK 13 decimator 220 1200 decimator1 E
+P ratio=M
+BLOCK 14 integrator -40 700 integrator4 S
+BLOCK 15 integrator -40 820 integrator5 S
+BLOCK 16 integrator -40 980 integrator6 S
+BLOCK 17 integrator -40 1100 integrator7 S
+BLOCK 18 comb 740 1020 comb4 N
+P value=L
+BLOCK 19 comb 740 540 comb5 N
+P value=L
+BLOCK 20 comb 740 660 comb6 N
+P value=L
+BLOCK 21 comb 740 1140 comb7 N
+P value=L
+BLOCK 22 delay 60 900 delay1 E
+P delay=1
+BLOCK 23 decimator 220 900 decimator2 E
+P ratio=M
+BLOCK 24 delay 380 900 delay2 E
+P delay=L
+BLOCK 25 gain 540 900 gain1 E
+P value=7
+BLOCK 26 sum 660 780 sum1 N
+P inputs=2
+BLOCK 27 gain 740 900 gain2 N
+P value=2
+BLOCK 28 sum 660 300 sum2 N
+P inputs=2
+BLOCK 29 delay 60 600 delay3 E
+P delay=1
+BLOCK 30 decimator 220 600 decimator3 E
+P ratio=M
+BLOCK 31 delay 380 600 delay4 E
+P delay=L
+BLOCK 32 gain 540 600 gain3 E
+P value=7
+BLOCK 33 gain 740 420 gain4 N
+P value=2
+BLOCK 34 delay 60 180 delay5 E
+P delay=1
+BLOCK 35 decimator 220 180 decimator4 E
+P ratio=M
+BLOCK 36 delay 380 180 delay6 E
+P delay=L
+BLOCK 37 gain 540 180 gain5 E
+P value=7
+WIRE 3 1
+WIRE 1 9
+WIRE 9 10
+WIRE 12 11
+WIRE 11 6
+WIRE 6 4
+WIRE 14 15
+WIRE 15 16
+WIRE 10 14
+WIRE 16 17
+WIRE 17 13
+WIRE 20 19
+WIRE 21 18
+WIRE 13 21
+WIRE 25 26
+WIRE 22 23
+WIRE 23 24
+WIRE 24 25
+WIRE 15 22
+WIRE 18 27
+WIRE 27 26
+WIRE 26 20
+WIRE 29 30
+WIRE 30 31
+WIRE 31 32
+WIRE 10 29
+WIRE 32 28
+WIRE 19 33
+WIRE 33 28
+WIRE 34 35
+WIRE 35 36
+WIRE 36 37
+WIRE 1 34
