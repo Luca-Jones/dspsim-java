@@ -63,6 +63,6 @@ test: default
 manifest.txt:
 	printf "Main-Class: $(MAIN)\n$(if $(LIBS_SPACE),Class-Path: $(LIBS_SPACE)\n)" > manifest.txt
 
-jar: manifest.txt
+jar: default manifest.txt
 	jar cfm $(OUT).jar manifest.txt -C $(BIN) .
 	rm manifest.txt

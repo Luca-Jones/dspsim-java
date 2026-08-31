@@ -1,8 +1,14 @@
 import java.io.IOException;
 
+import sim.SDFGraph;
+
 public class Main {
 
 	public static void main(String[] args) {
+		if (args.length == 0) {
+			gui.MainFrame.launch();
+			return; // the Swing EDT keeps the JVM alive
+		}
 		System.exit(run(args));
 	}
 
