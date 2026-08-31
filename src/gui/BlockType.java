@@ -38,7 +38,7 @@ public enum BlockType {
 	MULTIPLIER("multiplier", "×", Category.MATH, InArity.TWO,
 		"multiplies its two inputs"),
 
-	DELAY("delay", "z⁻¹", Category.RATE, InArity.ONE,
+	DELAY("delay", "z^-1", Category.RATE, InArity.ONE,
 		"delays by n samples",
 		Param.integer("delay", false, "1")),
 	DECIMATOR("decimator", "↓R", Category.RATE, InArity.ONE,
@@ -90,7 +90,9 @@ public enum BlockType {
 		this.params = List.of(params);
 	}
 
-	/** Glyph drawn in the block, folding in the primary parameter value. */
+	/** Glyph drawn in the block, folding in the primary parameter value.
+	 *  Text after '^' is rendered by the canvas as a superscript, so it works
+	 *  for macro names as well as numbers. */
 	public String glyph(Block b) {
 		if (this == DATAOUT) {
 			String file = b.params.getOrDefault("file", "").trim();
@@ -106,26 +108,13 @@ public enum BlockType {
 			case GAIN -> "×" + v;
 			case LSHIFT -> "≪" + v;
 			case RSHIFT -> "≫" + v;
-			case DELAY -> "z" + superscript("-" + v);
+			case DELAY -> "z^-" + v;
 			case DECIMATOR -> "↓" + v;
 			case INTERPOLATOR -> "↑" + v;
 			case HOLD -> "S/H " + v;
 			case DATAIN -> v;
 			default -> glyph;
 		};
-	}
-
-	private static String superscript(String s) {
-		StringBuilder b = new StringBuilder();
-		for (char c : s.toCharArray())
-			b.append(switch (c) {
-				case '-' -> '⁻';
-				case '1' -> '¹';
-				case '2' -> '²';
-				case '3' -> '³';
-				default -> c >= '0' && c <= '9' ? (char) ('⁰' + (c - '0')) : c;
-			});
-		return b.toString();
 	}
 
 	public boolean isSource() { return inArity == InArity.NONE; }

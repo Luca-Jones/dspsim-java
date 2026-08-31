@@ -87,7 +87,7 @@ public class MainFrame extends JFrame {
 		setStatus("Pick a block, click the canvas to place (Shift stamps several). "
 				+ "Drag port to port to wire. Left-drag pans, right-drag selects, "
 				+ "Shift+click multi-selects, Ctrl+C/V copies, Ctrl+Z/Y undoes/redoes, "
-				+ "R/Shift+R rotates, H/V flips, Ctrl+wheel zooms, Del deletes, Esc cancels.");
+				+ "R/Shift+R rotates, H/V flips, Ctrl+wheel/± zooms, Del deletes, Esc cancels.");
 		add(status, BorderLayout.SOUTH);
 	}
 

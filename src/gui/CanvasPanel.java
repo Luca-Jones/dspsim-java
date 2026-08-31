@@ -42,7 +42,8 @@ import javax.swing.SwingUtilities;
  *  - Shift/Ctrl+click adds or removes blocks from the selection
  *  - left-drag block moves selection, left-drag empty pans, middle-drag pans
  *  - right-drag rubber-band selects, right-click context menu
- *  - Ctrl+wheel zooms about the cursor, wheel scrolls, Shift+wheel horizontal
+ *  - Ctrl+wheel zooms about the cursor, Ctrl+plus/minus about the center,
+ *    wheel scrolls, Shift+wheel horizontal
  *  - Del deletes, Ctrl+C/V copy-paste, double-click edits properties
  *  - R/Shift+R rotates the selection CW/CCW, H/V flips it (NESW orientation)
  */
@@ -422,25 +423,46 @@ public class CanvasPanel extends JPanel {
 		g2.draw(rect);
 
 		g2.setColor(theme.glyph);
-		String glyph = b.type.glyph(b);
-		Font glyphFont = getFont().deriveFont(Font.BOLD, 20f);
-		FontMetrics fm = g2.getFontMetrics(glyphFont);
-		int maxWidth = Block.W - 12;
-		if (fm.stringWidth(glyph) > maxWidth)
-			glyphFont = glyphFont.deriveFont(
-					Math.max(10f, 20f * maxWidth / fm.stringWidth(glyph)));
-		g2.setFont(glyphFont);
-		fm = g2.getFontMetrics();
-		g2.drawString(glyph,
-				b.x + (Block.W - fm.stringWidth(glyph)) / 2f,
-				b.y + (Block.H + fm.getAscent() - fm.getDescent()) / 2f);
+		paintGlyph(g2, b);
 
 		g2.setColor(theme.caption);
 		g2.setFont(getFont().deriveFont(10f));
-		fm = g2.getFontMetrics();
+		FontMetrics fm = g2.getFontMetrics();
 		g2.drawString(b.name, b.x + (Block.W - fm.stringWidth(b.name)) / 2f, b.y + Block.H + 13);
 
 		paintPorts(g2, b);
+	}
+
+	/** Centers the glyph in the block. Text after '^' is drawn raised in a
+	 *  smaller font — a real superscript, so delay exponents render the same
+	 *  whether they are numbers or macro names. */
+	private void paintGlyph(Graphics2D g2, Block b) {
+		String glyph = b.type.glyph(b);
+		int caret = glyph.indexOf('^');
+		String base = caret < 0 ? glyph : glyph.substring(0, caret);
+		String sup = caret < 0 ? "" : glyph.substring(caret + 1);
+		Font baseFont = getFont().deriveFont(Font.BOLD, 20f);
+		Font supFont = getFont().deriveFont(Font.BOLD, 13f);
+		FontMetrics bm = g2.getFontMetrics(baseFont);
+		FontMetrics sm = g2.getFontMetrics(supFont);
+		int width = bm.stringWidth(base) + sm.stringWidth(sup);
+		int maxWidth = Block.W - 12;
+		if (width > maxWidth) {
+			float scale = Math.max(10f, 20f * maxWidth / width) / 20f;
+			baseFont = baseFont.deriveFont(20f * scale);
+			supFont = supFont.deriveFont(13f * scale);
+			bm = g2.getFontMetrics(baseFont);
+			sm = g2.getFontMetrics(supFont);
+			width = bm.stringWidth(base) + sm.stringWidth(sup);
+		}
+		float x = b.x + (Block.W - width) / 2f;
+		float y = b.y + (Block.H + bm.getAscent() - bm.getDescent()) / 2f;
+		g2.setFont(baseFont);
+		g2.drawString(base, x, y);
+		if (!sup.isEmpty()) {
+			g2.setFont(supFont);
+			g2.drawString(sup, x + bm.stringWidth(base), y - bm.getAscent() * 0.38f);
+		}
 	}
 
 	private void paintPorts(Graphics2D g2, Block b) {
@@ -665,14 +687,7 @@ public class CanvasPanel extends JPanel {
 		@Override
 		public void mouseWheelMoved(MouseWheelEvent e) {
 			if (e.isControlDown()) {
-				double factor = Math.pow(1.12, -e.getWheelRotation());
-				double newZoom = Math.max(0.2, Math.min(4.0, zoom * factor));
-				// keep the model point under the cursor fixed
-				Point2D m = toModel(e.getPoint());
-				panX = e.getX() - m.getX() * newZoom;
-				panY = e.getY() - m.getY() * newZoom;
-				zoom = newZoom;
-				frame.setZoomLabel(Math.round(zoom * 100) + "%");
+				zoomAbout(Math.pow(1.12, -e.getWheelRotation()), e.getX(), e.getY());
 			} else if (e.isShiftDown()) {
 				panX -= e.getWheelRotation() * 40;
 			} else {
@@ -680,6 +695,17 @@ public class CanvasPanel extends JPanel {
 			}
 			repaint();
 		}
+	}
+
+	/** Zooms by factor, keeping the model point at screen (cx, cy) fixed. */
+	private void zoomAbout(double factor, int cx, int cy) {
+		double newZoom = Math.max(0.2, Math.min(4.0, zoom * factor));
+		Point2D m = toModel(new Point(cx, cy));
+		panX = cx - m.getX() * newZoom;
+		panY = cy - m.getY() * newZoom;
+		zoom = newZoom;
+		frame.setZoomLabel(Math.round(zoom * 100) + "%");
+		repaint();
 	}
 
 	private void finishWire(Point2D m) {
@@ -761,12 +787,21 @@ public class CanvasPanel extends JPanel {
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, KeyEvent.SHIFT_DOWN_MASK), "rotateCCW");
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "flipH");
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_V, 0), "flipV");
+		// Ctrl+plus / Ctrl+minus zoom about the canvas center; the "+" key is
+		// VK_EQUALS on the main row, VK_ADD/VK_SUBTRACT on the numpad
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, KeyEvent.CTRL_DOWN_MASK), "zoomIn");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, KeyEvent.CTRL_DOWN_MASK), "zoomIn");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, KeyEvent.CTRL_DOWN_MASK), "zoomIn");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, KeyEvent.CTRL_DOWN_MASK), "zoomOut");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, KeyEvent.CTRL_DOWN_MASK), "zoomOut");
 		am.put("delete", action(this::deleteSelection));
 		am.put("escape", action(this::escape));
 		am.put("rotateCW", action(() -> orientSelection(Block.Dir::cw, "Rotated")));
 		am.put("rotateCCW", action(() -> orientSelection(Block.Dir::ccw, "Rotated")));
 		am.put("flipH", action(() -> orientSelection(Block.Dir::flipH, "Flipped")));
 		am.put("flipV", action(() -> orientSelection(Block.Dir::flipV, "Flipped")));
+		am.put("zoomIn", action(() -> zoomAbout(1.25, getWidth() / 2, getHeight() / 2)));
+		am.put("zoomOut", action(() -> zoomAbout(1 / 1.25, getWidth() / 2, getHeight() / 2)));
 	}
 
 	/** Applies a direction transform (rotate or flip) to every selected block. */
