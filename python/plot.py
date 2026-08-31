@@ -14,7 +14,7 @@ def get_data(file: str) -> np.ndarray:
 def plot(title: str, data: np.ndarray):
     fig, (t, f) = plt.subplots(1, 2, figsize=(12, 4))
 
-    t.stem(data)
+    t.stem(data, markerfmt='.').markerline.set_markersize(4)
     t.set_title(title)
     t.set_xlabel('n')
     t.set_ylabel('x[n]')
