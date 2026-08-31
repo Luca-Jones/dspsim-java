@@ -21,17 +21,33 @@ def plot(title: str, data: np.ndarray):
 
     n = max(4096, 32*len(data))
     Xk = np.fft.rfft(data, n)
+    dc = np.abs(Xk[0])
     Xk = Xk / Xk[0]
     with np.errstate(divide='ignore'):
         mag = dB(np.abs(Xk))
+        dc_dB = dB(dc)
     f.plot(np.fft.rfftfreq(n), mag)
     f.set_xlim(0, 0.5)
     finite = mag[np.isfinite(mag)]
     lo, hi = np.percentile(finite, 1), finite.max()
     pad = 0.05*(hi - lo) or 1.0
-    f.set_ylim(lo - pad, hi + pad)
+    lo, hi = lo - pad, hi + pad
+    f.set_ylim(lo, hi)
     f.set_xlabel('f/fs')
-    f.set_ylabel('Magnitude (dB)')
+    f.set_ylabel('Normalized magnitude (dB)')
+    f.axhline(0, color='0.6', lw=0.8, zorder=0)
+
+    # anchor the ticks on 0 dB so the DC gain lands exactly on a tick
+    step = next((s for s in (1, 2, 5, 10, 20, 50, 100, 200, 500)
+                 if (hi - lo)/s <= 10), 500)
+    ticks = np.arange(np.ceil(lo/step)*step, hi + step/2, step)
+    f.set_yticks(ticks)
+
+    if np.isfinite(dc_dB):
+        true = f.twinx()
+        true.set_ylim(lo, hi)
+        true.set_yticks(ticks, [f'{y + dc_dB:.1f}' for y in ticks])
+        true.set_ylabel('True magnitude (dB)')
 
     fig.tight_layout()
     return fig
