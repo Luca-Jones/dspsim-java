@@ -8,6 +8,8 @@ public interface Node {
 	default int inputRate() { return 1; }
 	default int outputRate() { return 1; }
 	default void reset() {}
+	/** Initial tokens this node places on each output edge before the first tick. */
+	default int initialTokens() { return 0; }
 
 	class InvalidWiringException extends RuntimeException {
 		public InvalidWiringException(String message) {

@@ -18,7 +18,6 @@ import graph.Digraph;
 import graph.GraphConfig;
 import node.Node;
 import node.NodeFactory;
-import node.DelayNode;
 import parser.*;
 import util.PairMap;
 
@@ -156,7 +155,7 @@ public class SDFGraph {
 				nodes.add(node);
 			}
 			for (Node child : graph.getChildren(node)) {
-				tokens.put(node, child, (node instanceof DelayNode d) ? d.delay : 0);
+				tokens.put(node, child, node.initialTokens());
 			}
 		}
 		while (!nodes.isEmpty()) {
@@ -218,10 +217,8 @@ public class SDFGraph {
 			node.reset();
 			for (Node child : graph.getChildren(node)) {
 				buses.get(node, child).clear();
-				if (node instanceof DelayNode d) {
-					for (int i = 0; i < d.delay; i++) {
-						buses.get(node, child).add(BigInteger.ZERO);
-					}
+				for (int i = 0; i < node.initialTokens(); i++) {
+					buses.get(node, child).add(BigInteger.ZERO);
 				}
 			}
 		}

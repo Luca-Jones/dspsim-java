@@ -8,11 +8,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import node.CombNode;
 import node.ConstantNode;
 import node.DataInNode;
 import node.DataOutNode;
 import node.DecimatorNode;
 import node.DelayNode;
+import node.IntegratorNode;
 import node.GainNode;
 import node.ImpulseNode;
 import node.InterpolatorNode;
@@ -263,6 +265,103 @@ public class NodeTest {
 	@Test
 	void delayWiring() {
 		DelayNode n = new DelayNode();
+		assertDoesNotThrow(() -> n.checkWiring(1, 1));
+		assertDoesNotThrow(() -> n.checkWiring(1, 2));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(0, 1));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(2, 1));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 0));
+	}
+
+	// ---------- Integrator ----------
+
+	@Test
+	void integratorAccumulatesInputs() {
+		IntegratorNode n = new IntegratorNode();
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of(BigInteger.valueOf(1))));
+		assertEquals(BigInteger.valueOf(3), n.evaluate(List.of(BigInteger.valueOf(2))));
+		assertEquals(BigInteger.valueOf(6), n.evaluate(List.of(BigInteger.valueOf(3))));
+	}
+
+	@Test
+	void integratorResetClearsAccumulator() {
+		IntegratorNode n = new IntegratorNode();
+		n.evaluate(List.of(BigInteger.valueOf(5)));
+		n.reset();
+		assertEquals(BigInteger.valueOf(2), n.evaluate(List.of(BigInteger.valueOf(2))));
+	}
+
+	@Test
+	void integratorSeedsOneToken() {
+		assertEquals(1, new IntegratorNode().initialTokens());
+	}
+
+	@Test
+	void integratorRejectsWrongArity() {
+		IntegratorNode n = new IntegratorNode();
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
+	}
+
+	@Test
+	void integratorWiring() {
+		IntegratorNode n = new IntegratorNode();
+		assertDoesNotThrow(() -> n.checkWiring(1, 1));
+		assertDoesNotThrow(() -> n.checkWiring(1, 3));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(0, 1));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(2, 1));
+		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 0));
+	}
+
+	// ---------- Comb ----------
+
+	@Test
+	void combLengthOneIsFirstDifference() {
+		CombNode n = new CombNode();
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of(BigInteger.valueOf(1))));
+		assertEquals(BigInteger.valueOf(3), n.evaluate(List.of(BigInteger.valueOf(4))));
+		assertEquals(BigInteger.valueOf(5), n.evaluate(List.of(BigInteger.valueOf(9))));
+	}
+
+	@Test
+	void combSubtractsSampleFromLTicksAgo() {
+		// memory starts zeroed, so the first L outputs equal the inputs
+		CombNode n = new CombNode(3);
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of(BigInteger.valueOf(1))));
+		assertEquals(BigInteger.valueOf(2), n.evaluate(List.of(BigInteger.valueOf(2))));
+		assertEquals(BigInteger.valueOf(3), n.evaluate(List.of(BigInteger.valueOf(3))));
+		assertEquals(BigInteger.valueOf(3), n.evaluate(List.of(BigInteger.valueOf(4)))); // 4 - 1
+		assertEquals(BigInteger.valueOf(3), n.evaluate(List.of(BigInteger.valueOf(5)))); // 5 - 2
+	}
+
+	@Test
+	void combResetRestoresZeroedMemory() {
+		CombNode n = new CombNode();
+		n.evaluate(List.of(BigInteger.valueOf(7)));
+		n.reset();
+		assertEquals(BigInteger.valueOf(2), n.evaluate(List.of(BigInteger.valueOf(2))));
+	}
+
+	@Test
+	void combNeedsNoSeeding() {
+		assertEquals(0, new CombNode().initialTokens());
+	}
+
+	@Test
+	void combRejectsLengthBelowOne() {
+		assertThrows(IllegalArgumentException.class, () -> new CombNode(0));
+		assertThrows(IllegalArgumentException.class, () -> new CombNode(-2));
+	}
+
+	@Test
+	void combRejectsWrongArity() {
+		CombNode n = new CombNode();
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
+	}
+
+	@Test
+	void combWiring() {
+		CombNode n = new CombNode();
 		assertDoesNotThrow(() -> n.checkWiring(1, 1));
 		assertDoesNotThrow(() -> n.checkWiring(1, 2));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(0, 1));
