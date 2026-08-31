@@ -51,6 +51,7 @@ import sim.SDFGraph;
 public class MainFrame extends JFrame {
 
 	private Diagram diagram = new Diagram();
+	private final History history = new History();
 	private final CanvasPanel canvas;
 	private final JLabel status = new JLabel();
 	private final JLabel zoomLabel = new JLabel("100%");
@@ -85,8 +86,8 @@ public class MainFrame extends JFrame {
 		status.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 		setStatus("Pick a block, click the canvas to place (Shift stamps several). "
 				+ "Drag port to port to wire. Left-drag pans, right-drag selects, "
-				+ "Shift+click multi-selects, Ctrl+C/V copies, Ctrl+wheel zooms, "
-				+ "Del deletes, Esc cancels.");
+				+ "Shift+click multi-selects, Ctrl+C/V copies, Ctrl+Z/Y undoes/redoes, "
+				+ "Ctrl+wheel zooms, Del deletes, Esc cancels.");
 		add(status, BorderLayout.SOUTH);
 	}
 
@@ -110,6 +111,9 @@ public class MainFrame extends JFrame {
 		mb.add(file);
 
 		JMenu edit = new JMenu("Edit");
+		edit.add(item("Undo", KeyEvent.VK_Z, e -> undoRedo(true)));
+		edit.add(item("Redo", KeyEvent.VK_Y, e -> undoRedo(false)));
+		edit.addSeparator();
 		edit.add(item("Copy", KeyEvent.VK_C, e -> canvas.copySelection()));
 		edit.add(item("Paste", KeyEvent.VK_V, e -> canvas.paste()));
 		edit.addSeparator();
@@ -230,8 +234,25 @@ public class MainFrame extends JFrame {
 		canvas.setPlacing(null);
 	}
 
-	/** Called by the canvas after any model mutation; refreshes the title. */
-	public void touch() { refreshTitle(); }
+	/** Called by the canvas after any model mutation; snapshots for undo and
+	 *  refreshes the title. */
+	public void touch() {
+		history.record(diagram);
+		refreshTitle();
+	}
+
+	private void undoRedo(boolean undo) {
+		Diagram d = undo ? history.undo() : history.redo();
+		if (d == null) {
+			setStatus(undo ? "Nothing to undo." : "Nothing to redo.");
+			return;
+		}
+		diagram = d;
+		diagram.dirty = true;
+		canvas.setDiagram(diagram, false);
+		refreshTitle();
+		setStatus(undo ? "Undo." : "Redo.");
+	}
 
 	private void refreshTitle() {
 		setTitle("dspsim — " + (currentFile == null ? "untitled" : currentFile.getName())
@@ -260,6 +281,7 @@ public class MainFrame extends JFrame {
 			return;
 		diagram = new Diagram();
 		currentFile = null;
+		history.reset(diagram);
 		canvas.setDiagram(diagram);
 		refreshTitle();
 		setStatus("New diagram.");
@@ -275,6 +297,7 @@ public class MainFrame extends JFrame {
 		try {
 			diagram = Diagram.load(f);
 			currentFile = f;
+			history.reset(diagram);
 			canvas.setDiagram(diagram);
 			refreshTitle();
 			setStatus("Loaded " + f.getName() + ".");

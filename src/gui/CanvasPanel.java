@@ -147,10 +147,18 @@ public class CanvasPanel extends JPanel {
 	/** Swap in a new diagram (New/Open) without recreating the canvas, so
 	 *  view settings like dark mode survive. */
 	public void setDiagram(Diagram d) {
+		setDiagram(d, true);
+	}
+
+	/** Undo/redo replaces the diagram too, but keeps the zoom and pan. */
+	public void setDiagram(Diagram d, boolean resetView) {
 		diagram = d;
 		selection.clear();
 		selectedWire = null;
-		resetView();
+		if (resetView)
+			resetView();
+		else
+			repaint();
 	}
 
 	public void setPlacing(BlockType type) {

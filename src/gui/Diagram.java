@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -114,59 +116,82 @@ public class Diagram {
 
 	public void save(File f) throws IOException {
 		try (PrintWriter pw = new PrintWriter(f)) {
-			pw.println("DSPSIM 1");
-			for (Map.Entry<String, String> e : macros.entrySet())
-				pw.println("MACRO " + e.getKey() + "=" + e.getValue());
-			for (Block b : blocks) {
-				pw.println("BLOCK " + b.id + " " + b.type.dotType + " "
-						+ b.x + " " + b.y + " " + b.name);
-				for (Map.Entry<String, String> e : b.params.entrySet())
-					pw.println("P " + e.getKey() + "=" + e.getValue());
-			}
-			for (Wire w : wires)
-				pw.println("WIRE " + w.src.id + " " + w.dst.id);
+			write(pw);
 		}
 		dirty = false;
 	}
 
+	private void write(PrintWriter pw) {
+		pw.println("DSPSIM 1");
+		for (Map.Entry<String, String> e : macros.entrySet())
+			pw.println("MACRO " + e.getKey() + "=" + e.getValue());
+		for (Block b : blocks) {
+			pw.println("BLOCK " + b.id + " " + b.type.dotType + " "
+					+ b.x + " " + b.y + " " + b.name);
+			for (Map.Entry<String, String> e : b.params.entrySet())
+				pw.println("P " + e.getKey() + "=" + e.getValue());
+		}
+		for (Wire w : wires)
+			pw.println("WIRE " + w.src.id + " " + w.dst.id);
+	}
+
+	/** The diagram as .dsg text; also the undo history's state format. */
+	public String snapshot() {
+		StringWriter sw = new StringWriter();
+		write(new PrintWriter(sw));
+		return sw.toString();
+	}
+
+	public static Diagram fromSnapshot(String s) {
+		try {
+			return read(new BufferedReader(new StringReader(s)));
+		} catch (IOException e) {
+			throw new IllegalStateException(e); // no I/O on a string
+		}
+	}
+
 	public static Diagram load(File f) throws IOException {
+		try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+			return read(br);
+		}
+	}
+
+	private static Diagram read(BufferedReader br) throws IOException {
 		Diagram d = new Diagram();
 		Map<Integer, Block> byId = new HashMap<>();
 		Block cur = null;
 		int maxId = 0;
-		try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-			String line;
-			while ((line = br.readLine()) != null) {
-				line = line.trim();
-				if (line.startsWith("MACRO ")) {
-					String kv = line.substring(6);
-					int eq = kv.indexOf('=');
-					if (eq > 0)
-						d.macros.put(kv.substring(0, eq).trim(), kv.substring(eq + 1).trim());
-				} else if (line.startsWith("BLOCK ")) {
-					String[] t = line.split("\\s+");
-					BlockType type = BlockType.fromDotType(t[2]);
-					if (type == null)
-						throw new IOException("unknown block type: " + t[2]);
-					cur = new Block(Integer.parseInt(t[1]), type,
-							Integer.parseInt(t[3]), Integer.parseInt(t[4]), t[5]);
-					d.blocks.add(cur);
-					byId.put(cur.id, cur);
-					maxId = Math.max(maxId, cur.id);
-				} else if (line.startsWith("P ") && cur != null) {
-					String kv = line.substring(2);
-					int eq = kv.indexOf('=');
-					if (eq > 0)
-						cur.params.put(kv.substring(0, eq).trim(), kv.substring(eq + 1).trim());
-				} else if (line.startsWith("WIRE ")) {
-					String[] t = line.split("\\s+");
-					Block src = byId.get(Integer.parseInt(t[1]));
-					Block dst = byId.get(Integer.parseInt(t[2]));
-					if (src != null && dst != null)
-						d.wires.add(new Wire(src, dst));
-				}
-				// unknown prefixes are ignored for forward compatibility
+		String line;
+		while ((line = br.readLine()) != null) {
+			line = line.trim();
+			if (line.startsWith("MACRO ")) {
+				String kv = line.substring(6);
+				int eq = kv.indexOf('=');
+				if (eq > 0)
+					d.macros.put(kv.substring(0, eq).trim(), kv.substring(eq + 1).trim());
+			} else if (line.startsWith("BLOCK ")) {
+				String[] t = line.split("\\s+");
+				BlockType type = BlockType.fromDotType(t[2]);
+				if (type == null)
+					throw new IOException("unknown block type: " + t[2]);
+				cur = new Block(Integer.parseInt(t[1]), type,
+						Integer.parseInt(t[3]), Integer.parseInt(t[4]), t[5]);
+				d.blocks.add(cur);
+				byId.put(cur.id, cur);
+				maxId = Math.max(maxId, cur.id);
+			} else if (line.startsWith("P ") && cur != null) {
+				String kv = line.substring(2);
+				int eq = kv.indexOf('=');
+				if (eq > 0)
+					cur.params.put(kv.substring(0, eq).trim(), kv.substring(eq + 1).trim());
+			} else if (line.startsWith("WIRE ")) {
+				String[] t = line.split("\\s+");
+				Block src = byId.get(Integer.parseInt(t[1]));
+				Block dst = byId.get(Integer.parseInt(t[2]));
+				if (src != null && dst != null)
+					d.wires.add(new Wire(src, dst));
 			}
+			// unknown prefixes are ignored for forward compatibility
 		}
 		d.nextId = maxId + 1;
 		d.dirty = false;
