@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
@@ -43,6 +44,7 @@ import javax.swing.SwingUtilities;
  *  - right-drag rubber-band selects, right-click context menu
  *  - Ctrl+wheel zooms about the cursor, wheel scrolls, Shift+wheel horizontal
  *  - Del deletes, Ctrl+C/V copy-paste, double-click edits properties
+ *  - R/Shift+R rotates the selection CW/CCW, H/V flips it (NESW orientation)
  */
 public class CanvasPanel extends JPanel {
 
@@ -125,7 +127,8 @@ public class CanvasPanel extends JPanel {
 	private Rectangle2D band = null;
 	private Anchor hover = null;
 
-	private record ClipBlock(BlockType type, int x, int y, LinkedHashMap<String, String> params) {}
+	private record ClipBlock(BlockType type, int x, int y, Block.Dir dir,
+			LinkedHashMap<String, String> params) {}
 	private record ClipWire(int src, int dst) {}
 	private List<ClipBlock> clipBlocks = List.of();
 	private List<ClipWire> clipWires = List.of();
@@ -197,11 +200,22 @@ public class CanvasPanel extends JPanel {
 	private List<Anchor> anchors(Block b) {
 		List<Anchor> list = new ArrayList<>();
 		if (!b.type.isSink())
-			list.add(new Anchor(b, true, 0, b.x + Block.W, b.y + Block.H / 2.0));
+			list.add(outputAnchor(b));
 		int n = inputCount(b);
 		for (int i = 0; i < n; i++)
-			list.add(new Anchor(b, false, i, b.x, b.y + Block.H * (i + 1) / (double) (n + 1)));
+			list.add(inputAnchor(b, i));
 		return list;
+	}
+
+	/** The point at fraction (i+1)/(n+1) along the given side of the block. */
+	private static Point2D sidePoint(Block b, Block.Dir side, int i, int n) {
+		double f = (i + 1) / (double) (n + 1);
+		return switch (side) {
+			case E -> new Point2D.Double(b.x + Block.W, b.y + Block.H * f);
+			case W -> new Point2D.Double(b.x, b.y + Block.H * f);
+			case S -> new Point2D.Double(b.x + Block.W * f, b.y + Block.H);
+			case N -> new Point2D.Double(b.x + Block.W * f, b.y);
+		};
 	}
 
 	/** Input dots: fixed for ONE/TWO; for sum, the configured "inputs" count,
@@ -225,12 +239,13 @@ public class CanvasPanel extends JPanel {
 	}
 
 	private Anchor inputAnchor(Block b, int slot) {
-		int n = inputCount(b);
-		return new Anchor(b, false, slot, b.x, b.y + Block.H * (slot + 1) / (double) (n + 1));
+		Point2D p = sidePoint(b, b.dir.opposite(), slot, inputCount(b));
+		return new Anchor(b, false, slot, p.getX(), p.getY());
 	}
 
 	private Anchor outputAnchor(Block b) {
-		return new Anchor(b, true, 0, b.x + Block.W, b.y + Block.H / 2.0);
+		Point2D p = sidePoint(b, b.dir, 0, 1);
+		return new Anchor(b, true, 0, p.getX(), p.getY());
 	}
 
 	private Anchor anchorAt(Point2D m) {
@@ -265,28 +280,63 @@ public class CanvasPanel extends JPanel {
 	}
 
 	/**
-	 * Orthogonal auto-route. Forward wires jog once at a vertical grid line;
-	 * feedback wires (destination left of source) detour below both blocks.
-	 * The last segment is always horizontal into the input dot, so the
-	 * arrowhead enters head-on.
+	 * Orthogonal auto-route, generalized over port orientation. Each end
+	 * leaves its port with a STUB in the port's outward direction; the stub
+	 * ends are joined by axis: same-axis stubs jog once at a grid line midway
+	 * (detouring around the blocks when the flow runs backward), mixed-axis
+	 * stubs meet at a single corner. The last segment always enters the input
+	 * dot head-on, so the arrowhead points into the port.
 	 */
 	private List<Point2D> route(Wire w) {
 		int slot = diagram.wiresInto(w.dst).indexOf(w);
 		Anchor s = outputAnchor(w.src);
 		Anchor t = inputAnchor(w.dst, Math.max(slot, 0));
+		Block.Dir sd = w.src.dir;             // outward at the source port
+		Block.Dir td = w.dst.dir.opposite();  // outward at the input port
+		Point2D s2 = new Point2D.Double(s.x() + STUB * sd.dx(), s.y() + STUB * sd.dy());
+		Point2D t2 = new Point2D.Double(t.x() + STUB * td.dx(), t.y() + STUB * td.dy());
 		List<Point2D> pts = new ArrayList<>();
 		pts.add(new Point2D.Double(s.x(), s.y()));
-		double sx = s.x() + STUB, tx = t.x() - STUB;
-		if (sx <= tx) {
-			double mx = Math.max(sx, Math.min(tx, snap((sx + tx) / 2)));
-			pts.add(new Point2D.Double(mx, s.y()));
-			pts.add(new Point2D.Double(mx, t.y()));
+		boolean sh = sd.dy() == 0, th = td.dy() == 0;
+		if (sh && th) {
+			// a vertical jog at mx works when mx clears both stubs
+			double lo = Math.max(sd.dx() > 0 ? s2.getX() : Double.NEGATIVE_INFINITY,
+					td.dx() > 0 ? t2.getX() : Double.NEGATIVE_INFINITY);
+			double hi = Math.min(sd.dx() < 0 ? s2.getX() : Double.POSITIVE_INFINITY,
+					td.dx() < 0 ? t2.getX() : Double.POSITIVE_INFINITY);
+			if (lo <= hi) {
+				double mx = Math.max(lo, Math.min(hi, snap((s2.getX() + t2.getX()) / 2)));
+				pts.add(new Point2D.Double(mx, s.y()));
+				pts.add(new Point2D.Double(mx, t.y()));
+			} else {
+				double yc = snap(Math.max(w.src.y, w.dst.y) + Block.H + STUB);
+				pts.add(s2);
+				pts.add(new Point2D.Double(s2.getX(), yc));
+				pts.add(new Point2D.Double(t2.getX(), yc));
+				pts.add(new Point2D.Double(t2.getX(), t.y()));
+			}
+		} else if (!sh && !th) {
+			double lo = Math.max(sd.dy() > 0 ? s2.getY() : Double.NEGATIVE_INFINITY,
+					td.dy() > 0 ? t2.getY() : Double.NEGATIVE_INFINITY);
+			double hi = Math.min(sd.dy() < 0 ? s2.getY() : Double.POSITIVE_INFINITY,
+					td.dy() < 0 ? t2.getY() : Double.POSITIVE_INFINITY);
+			if (lo <= hi) {
+				double my = Math.max(lo, Math.min(hi, snap((s2.getY() + t2.getY()) / 2)));
+				pts.add(new Point2D.Double(s.x(), my));
+				pts.add(new Point2D.Double(t.x(), my));
+			} else {
+				double xc = snap(Math.max(w.src.x, w.dst.x) + Block.W + STUB);
+				pts.add(s2);
+				pts.add(new Point2D.Double(xc, s2.getY()));
+				pts.add(new Point2D.Double(xc, t2.getY()));
+				pts.add(new Point2D.Double(t.x(), t2.getY()));
+			}
 		} else {
-			double yc = snap(Math.max(w.src.y, w.dst.y) + Block.H + STUB);
-			pts.add(new Point2D.Double(sx, s.y()));
-			pts.add(new Point2D.Double(sx, yc));
-			pts.add(new Point2D.Double(tx, yc));
-			pts.add(new Point2D.Double(tx, t.y()));
+			// one horizontal, one vertical stub: a single corner joins them
+			pts.add(s2);
+			pts.add(sh ? new Point2D.Double(t2.getX(), s2.getY())
+					: new Point2D.Double(s2.getX(), t2.getY()));
+			pts.add(t2);
 		}
 		pts.add(new Point2D.Double(t.x(), t.y()));
 		return pts;
@@ -334,13 +384,16 @@ public class CanvasPanel extends JPanel {
 		for (int i = 1; i < pts.size(); i++)
 			path.lineTo(pts.get(i).getX(), pts.get(i).getY());
 		g2.draw(path);
-		// arrowhead: last segment is horizontal, entering the input dot
+		// arrowhead: the last segment enters the input dot head-on, so the
+		// arrow points inward along the input side's outward direction
 		Point2D end = pts.get(pts.size() - 1);
+		Block.Dir in = w.dst.dir.opposite();
 		double ax = end.getX(), ay = end.getY(), len = 9, half = 4;
+		double bx = ax + in.dx() * len, by = ay + in.dy() * len;
 		Path2D arrow = new Path2D.Double();
 		arrow.moveTo(ax, ay);
-		arrow.lineTo(ax - len, ay - half);
-		arrow.lineTo(ax - len, ay + half);
+		arrow.lineTo(bx - in.dy() * half, by + in.dx() * half);
+		arrow.lineTo(bx + in.dy() * half, by - in.dx() * half);
 		arrow.closePath();
 		g2.fill(arrow);
 	}
@@ -663,6 +716,16 @@ public class CanvasPanel extends JPanel {
 			JMenuItem props = new JMenuItem("Properties…");
 			props.addActionListener(ev -> editProperties(b));
 			menu.add(props);
+			menu.addSeparator();
+			menu.add(popupItem("Rotate clockwise (R)",
+					() -> orientSelection(Block.Dir::cw, "Rotated")));
+			menu.add(popupItem("Rotate counter-clockwise (Shift+R)",
+					() -> orientSelection(Block.Dir::ccw, "Rotated")));
+			menu.add(popupItem("Flip horizontal (H)",
+					() -> orientSelection(Block.Dir::flipH, "Flipped")));
+			menu.add(popupItem("Flip vertical (V)",
+					() -> orientSelection(Block.Dir::flipV, "Flipped")));
+			menu.addSeparator();
 			JMenuItem del = new JMenuItem("Delete");
 			del.addActionListener(ev -> deleteSelection());
 			menu.add(del);
@@ -680,6 +743,12 @@ public class CanvasPanel extends JPanel {
 		menu.show(this, e.getX(), e.getY());
 	}
 
+	private JMenuItem popupItem(String label, Runnable r) {
+		JMenuItem it = new JMenuItem(label);
+		it.addActionListener(ev -> r.run());
+		return it;
+	}
+
 	// ---- keyboard --------------------------------------------------------
 
 	private void bindKeys() {
@@ -688,8 +757,31 @@ public class CanvasPanel extends JPanel {
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete");
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete");
 		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "escape");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateCW");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, KeyEvent.SHIFT_DOWN_MASK), "rotateCCW");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "flipH");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_V, 0), "flipV");
 		am.put("delete", action(this::deleteSelection));
 		am.put("escape", action(this::escape));
+		am.put("rotateCW", action(() -> orientSelection(Block.Dir::cw, "Rotated")));
+		am.put("rotateCCW", action(() -> orientSelection(Block.Dir::ccw, "Rotated")));
+		am.put("flipH", action(() -> orientSelection(Block.Dir::flipH, "Flipped")));
+		am.put("flipV", action(() -> orientSelection(Block.Dir::flipV, "Flipped")));
+	}
+
+	/** Applies a direction transform (rotate or flip) to every selected block. */
+	private void orientSelection(UnaryOperator<Block.Dir> f, String verb) {
+		if (selection.isEmpty()) {
+			frame.setStatus("Nothing selected — click a block to rotate or flip it.");
+			return;
+		}
+		for (Block b : selection)
+			b.dir = f.apply(b.dir);
+		diagram.dirty = true;
+		frame.touch();
+		frame.setStatus(verb + " " + selection.size() + " block"
+				+ (selection.size() == 1 ? "" : "s") + ".");
+		repaint();
 	}
 
 	private AbstractAction action(Runnable r) {
@@ -736,7 +828,7 @@ public class CanvasPanel extends JPanel {
 		List<Block> ordered = new ArrayList<>(selection);
 		List<ClipBlock> cb = new ArrayList<>();
 		for (Block b : ordered)
-			cb.add(new ClipBlock(b.type, b.x, b.y, new LinkedHashMap<>(b.params)));
+			cb.add(new ClipBlock(b.type, b.x, b.y, b.dir, new LinkedHashMap<>(b.params)));
 		List<ClipWire> cw = new ArrayList<>();
 		for (Wire w : diagram.wires) {
 			int si = ordered.indexOf(w.src), di = ordered.indexOf(w.dst);
@@ -760,6 +852,7 @@ public class CanvasPanel extends JPanel {
 		List<Block> pasted = new ArrayList<>();
 		for (ClipBlock c : clipBlocks) {
 			Block b = diagram.addBlock(c.type(), c.x() + off, c.y() + off);
+			b.dir = c.dir();
 			b.params.putAll(c.params());
 			pasted.add(b);
 		}

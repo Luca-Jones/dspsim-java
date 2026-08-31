@@ -19,7 +19,7 @@ import java.util.Map;
  *
  *   DSPSIM 1
  *   MACRO <name>=<value>
- *   BLOCK <id> <dotType> <x> <y> <name>
+ *   BLOCK <id> <dotType> <x> <y> <name> [<dir>]   (dir: E/S/W/N, default E)
  *   P <key>=<value>          (attaches to the preceding BLOCK)
  *   WIRE <srcId> <dstId>
  */
@@ -127,7 +127,7 @@ public class Diagram {
 			pw.println("MACRO " + e.getKey() + "=" + e.getValue());
 		for (Block b : blocks) {
 			pw.println("BLOCK " + b.id + " " + b.type.dotType + " "
-					+ b.x + " " + b.y + " " + b.name);
+					+ b.x + " " + b.y + " " + b.name + " " + b.dir);
 			for (Map.Entry<String, String> e : b.params.entrySet())
 				pw.println("P " + e.getKey() + "=" + e.getValue());
 		}
@@ -176,6 +176,12 @@ public class Diagram {
 					throw new IOException("unknown block type: " + t[2]);
 				cur = new Block(Integer.parseInt(t[1]), type,
 						Integer.parseInt(t[3]), Integer.parseInt(t[4]), t[5]);
+				if (t.length > 6)
+					try {
+						cur.dir = Block.Dir.valueOf(t[6]);
+					} catch (IllegalArgumentException ignored) {
+						// pre-rotation files and unknown values stay East
+					}
 				d.blocks.add(cur);
 				byId.put(cur.id, cur);
 				maxId = Math.max(maxId, cur.id);
