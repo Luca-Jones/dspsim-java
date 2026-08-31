@@ -1,20 +1,21 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class GainNode implements Node {
 
-	private final Integer gain;
+	private final int gain;
 
 	public GainNode(int gain) {
 		this.gain = gain;
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs.size() != 1)
 			throw new IllegalArgumentException("GainNode takes exactly 1 input, " + inputs.size() + " were given.");
-		return gain*inputs.getFirst();
+		return inputs.getFirst().multiply(BigInteger.valueOf(gain));
 	}
 
 	@Override

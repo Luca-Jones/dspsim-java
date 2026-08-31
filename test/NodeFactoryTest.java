@@ -1,5 +1,6 @@
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -44,7 +45,7 @@ public class NodeFactoryTest {
 	void createsConstant() {
 		Node n = make("constant", "value", "9");
 		assertInstanceOf(ConstantNode.class, n);
-		assertEquals(9, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(9), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -57,20 +58,20 @@ public class NodeFactoryTest {
 		Node n = make("sine", "amplitude", "10", "period", "4");
 		assertInstanceOf(SineNode.class, n);
 		n.evaluate(List.of()); // n=0 -> 0
-		assertEquals(10, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(10), n.evaluate(List.of()));
 	}
 
 	@Test
 	void createsSineWithPhase() {
 		Node n = make("sine", "amplitude", "100", "period", "8", "phase", "2");
-		assertEquals(100, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(100), n.evaluate(List.of()));
 	}
 
 	@Test
 	void createsGain() {
 		Node n = make("gain", "value", "3");
 		assertInstanceOf(GainNode.class, n);
-		assertEquals(6, n.evaluate(List.of(2)));
+		assertEquals(BigInteger.valueOf(6), n.evaluate(List.of(BigInteger.valueOf(2))));
 	}
 
 	@Test
@@ -115,7 +116,7 @@ public class NodeFactoryTest {
 		Files.writeString(f, "8\n");
 		Node n = make("datain", "file", f.toString());
 		assertInstanceOf(DataInNode.class, n);
-		assertEquals(8, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(8), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -139,7 +140,7 @@ public class NodeFactoryTest {
 	void numericAttributesMayBeQuoted() {
 		// fir.dot uses value="2"
 		Node n = make("gain", "value", "2");
-		assertEquals(4, n.evaluate(List.of(2)));
+		assertEquals(BigInteger.valueOf(4), n.evaluate(List.of(BigInteger.valueOf(2))));
 	}
 
 	@Test

@@ -1,17 +1,18 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class ConstantNode implements Node {
 
-	private final Integer value;
+	private final BigInteger value;
 
-	public ConstantNode(Integer value) {
+	public ConstantNode(BigInteger value) {
 		this.value = value;
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (inputs == null || inputs.size() != 0)
 			throw new IllegalArgumentException();
 		return value;

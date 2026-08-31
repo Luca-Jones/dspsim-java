@@ -1,6 +1,7 @@
 package node;
 
 import java.io.ObjectInputFilter.Status;
+import java.math.BigInteger;
 import java.util.Map;
 
 import graph.VertexFactory;
@@ -38,7 +39,7 @@ public class NodeFactory implements VertexFactory<Node> {
 	private static ConstantNode createConstantNode(Map<String, String> attrs) {
 		if (!attrs.containsKey("value"))
 			throw new RuntimeException("Constant needs a value attribute.");
-		Integer value = Integer.parseInt(attrs.get("value"));
+		BigInteger value = new BigInteger(attrs.get("value"));
 		return new ConstantNode(value);
 	}
 

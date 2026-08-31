@@ -1,6 +1,7 @@
 package node;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -8,7 +9,7 @@ import java.util.List;
 
 public class DataInNode implements Node {
 
-	private final List<Integer> data;
+	private final List<BigInteger> data;
 	private int index;
 
 	public DataInNode(String file) {
@@ -22,7 +23,7 @@ public class DataInNode implements Node {
 		for (String line : lines) {
 			String s = line.trim();
 			try {
-				data.add(Integer.parseInt(s.split(",")[0].trim()));
+				data.add(new BigInteger(s.split(",")[0].trim()));
 			} catch (NumberFormatException e) {
 				if (!data.isEmpty())
 					break;
@@ -31,12 +32,12 @@ public class DataInNode implements Node {
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (!inputs.isEmpty())
 			throw new IllegalArgumentException();
 		if (index < data.size())
 			return data.get(index++);
-		return 0;
+		return BigInteger.ZERO;
 	}
 
 	@Override

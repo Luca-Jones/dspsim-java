@@ -1,5 +1,6 @@
 package node;
 
+import java.math.BigInteger;
 import java.util.List;
 
 public class SineNode implements Node {
@@ -19,10 +20,10 @@ public class SineNode implements Node {
 	}
 
 	@Override
-	public Integer evaluate(List<Integer> inputs) {
+	public BigInteger evaluate(List<BigInteger> inputs) {
 		if (!inputs.isEmpty())
 			throw new RuntimeException();
-		return (int) Math.round(amplitude * Math.sin(2 * Math.PI * ((n++)+phase) / period));
+		return BigInteger.valueOf(Math.round(amplitude * Math.sin(2 * Math.PI * ((n++)+phase) / period)));
 	}
 
 	@Override

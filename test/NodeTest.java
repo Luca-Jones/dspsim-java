@@ -2,6 +2,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.math.BigInteger;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -30,28 +31,28 @@ public class NodeTest {
 
 	@Test
 	void constantAlwaysReturnsItsValue() {
-		ConstantNode n = new ConstantNode(7);
-		assertEquals(7, n.evaluate(List.of()));
-		assertEquals(7, n.evaluate(List.of()));
+		ConstantNode n = new ConstantNode(BigInteger.valueOf(7));
+		assertEquals(BigInteger.valueOf(7), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(7), n.evaluate(List.of()));
 	}
 
 	@Test
 	void constantRejectsInputs() {
-		ConstantNode n = new ConstantNode(7);
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1)));
+		ConstantNode n = new ConstantNode(BigInteger.valueOf(7));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1))));
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(null));
 	}
 
 	@Test
 	void constantRates() {
-		ConstantNode n = new ConstantNode(7);
+		ConstantNode n = new ConstantNode(BigInteger.valueOf(7));
 		assertEquals(0, n.inputRate());
 		assertEquals(1, n.outputRate());
 	}
 
 	@Test
 	void constantWiring() {
-		ConstantNode n = new ConstantNode(7);
+		ConstantNode n = new ConstantNode(BigInteger.valueOf(7));
 		assertDoesNotThrow(() -> n.checkWiring(0, 1));
 		assertDoesNotThrow(() -> n.checkWiring(0, 3));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 1));
@@ -63,9 +64,9 @@ public class NodeTest {
 	@Test
 	void impulseEmitsOneThenZeros() {
 		ImpulseNode n = new ImpulseNode();
-		assertEquals(1, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -74,12 +75,12 @@ public class NodeTest {
 		n.evaluate(List.of());
 		n.evaluate(List.of());
 		n.reset();
-		assertEquals(1, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of()));
 	}
 
 	@Test
 	void impulseRejectsInputs() {
-		assertThrows(IllegalArgumentException.class, () -> new ImpulseNode().evaluate(List.of(1)));
+		assertThrows(IllegalArgumentException.class, () -> new ImpulseNode().evaluate(List.of(BigInteger.valueOf(1))));
 	}
 
 	@Test
@@ -98,7 +99,7 @@ public class NodeTest {
 		SineNode n = new SineNode(10, 4);
 		int[] expected = {0, 10, 0, -10, 0, 10, 0, -10};
 		for (int e : expected)
-			assertEquals(e, n.evaluate(List.of()));
+			assertEquals(BigInteger.valueOf(e), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -107,7 +108,7 @@ public class NodeTest {
 		SineNode n = new SineNode(100, 8, 2);
 		int[] expected = {100, 71, 0, -71, -100, -71, 0, 71};
 		for (int e : expected)
-			assertEquals(e, n.evaluate(List.of()));
+			assertEquals(BigInteger.valueOf(e), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -116,7 +117,7 @@ public class NodeTest {
 		SineNode n = new SineNode(10, 3);
 		int[] expected = {0, 9, -9, 0, 9, -9};
 		for (int e : expected)
-			assertEquals(e, n.evaluate(List.of()));
+			assertEquals(BigInteger.valueOf(e), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -125,8 +126,8 @@ public class NodeTest {
 		n.evaluate(List.of());
 		n.evaluate(List.of());
 		n.reset();
-		assertEquals(0, n.evaluate(List.of()));
-		assertEquals(10, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(10), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -134,14 +135,14 @@ public class NodeTest {
 		// quirk pinned as-is: n/0 -> NaN or Infinity, sin -> NaN,
 		// Math.round(NaN) = 0, so every sample is 0 with no error
 		SineNode n = new SineNode(10, 0);
-		assertEquals(0, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
 	}
 
 	@Test
 	void sineRejectsInputs() {
-		assertThrows(RuntimeException.class, () -> new SineNode(1, 4).evaluate(List.of(1)));
+		assertThrows(RuntimeException.class, () -> new SineNode(1, 4).evaluate(List.of(BigInteger.valueOf(1))));
 	}
 
 	@Test
@@ -156,16 +157,16 @@ public class NodeTest {
 
 	@Test
 	void gainMultiplies() {
-		assertEquals(12, new GainNode(3).evaluate(List.of(4)));
-		assertEquals(-8, new GainNode(-2).evaluate(List.of(4)));
-		assertEquals(0, new GainNode(5).evaluate(List.of(0)));
+		assertEquals(BigInteger.valueOf(12), new GainNode(3).evaluate(List.of(BigInteger.valueOf(4))));
+		assertEquals(BigInteger.valueOf(-8), new GainNode(-2).evaluate(List.of(BigInteger.valueOf(4))));
+		assertEquals(BigInteger.valueOf(0), new GainNode(5).evaluate(List.of(BigInteger.valueOf(0))));
 	}
 
 	@Test
 	void gainRejectsWrongArity() {
 		GainNode n = new GainNode(3);
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1, 2)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
 	}
 
 	@Test
@@ -182,20 +183,20 @@ public class NodeTest {
 
 	@Test
 	void sumAddsTwoInputs() {
-		assertEquals(3, new SumNode().evaluate(List.of(1, 2)));
+		assertEquals(BigInteger.valueOf(3), new SumNode().evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
 	}
 
 	@Test
 	void sumAddsManyInputs() {
-		assertEquals(10, new SumNode().evaluate(List.of(1, 2, 3, 4)));
-		assertEquals(0, new SumNode().evaluate(List.of(5, -5)));
+		assertEquals(BigInteger.valueOf(10), new SumNode().evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2), BigInteger.valueOf(3), BigInteger.valueOf(4))));
+		assertEquals(BigInteger.valueOf(0), new SumNode().evaluate(List.of(BigInteger.valueOf(5), BigInteger.valueOf(-5))));
 	}
 
 	@Test
 	void sumRejectsFewerThanTwoInputs() {
 		SumNode n = new SumNode();
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1))));
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(null));
 	}
 
@@ -212,16 +213,16 @@ public class NodeTest {
 
 	@Test
 	void multiplierMultipliesTwoInputs() {
-		assertEquals(12, new MultiplierNode().evaluate(List.of(3, 4)));
-		assertEquals(-12, new MultiplierNode().evaluate(List.of(3, -4)));
-		assertEquals(0, new MultiplierNode().evaluate(List.of(0, 9)));
+		assertEquals(BigInteger.valueOf(12), new MultiplierNode().evaluate(List.of(BigInteger.valueOf(3), BigInteger.valueOf(4))));
+		assertEquals(BigInteger.valueOf(-12), new MultiplierNode().evaluate(List.of(BigInteger.valueOf(3), BigInteger.valueOf(-4))));
+		assertEquals(BigInteger.valueOf(0), new MultiplierNode().evaluate(List.of(BigInteger.valueOf(0), BigInteger.valueOf(9))));
 	}
 
 	@Test
 	void multiplierRejectsWrongArity() {
 		MultiplierNode n = new MultiplierNode();
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1)));
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1, 2, 3)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1))));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2), BigInteger.valueOf(3))));
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(null));
 	}
 
@@ -249,14 +250,14 @@ public class NodeTest {
 	@Test
 	void delayEvaluatePassesThrough() {
 		// the delay itself is realized by bus priming in SDFGraph
-		assertEquals(7, new DelayNode().evaluate(List.of(7)));
+		assertEquals(BigInteger.valueOf(7), new DelayNode().evaluate(List.of(BigInteger.valueOf(7))));
 	}
 
 	@Test
 	void delayRejectsWrongArity() {
 		DelayNode n = new DelayNode();
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1, 2)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
 	}
 
 	@Test
@@ -279,17 +280,17 @@ public class NodeTest {
 
 	@Test
 	void decimatorRatioTwoKeepsFirstSample() {
-		assertEquals(9, new DecimatorNode(2).evaluate(List.of(9, 3)));
+		assertEquals(BigInteger.valueOf(9), new DecimatorNode(2).evaluate(List.of(BigInteger.valueOf(9), BigInteger.valueOf(3))));
 	}
 
 	@Test
 	void decimatorRejectsWrongArity() {
-		assertThrows(IllegalArgumentException.class, () -> new DecimatorNode(2).evaluate(List.of(1)));
+		assertThrows(IllegalArgumentException.class, () -> new DecimatorNode(2).evaluate(List.of(BigInteger.valueOf(1))));
 	}
 
 	@Test
 	void decimatorRatioThreeKeepsFirstSample() {
-		assertEquals(7, new DecimatorNode(3).evaluate(List.of(7, 5, 6)));
+		assertEquals(BigInteger.valueOf(7), new DecimatorNode(3).evaluate(List.of(BigInteger.valueOf(7), BigInteger.valueOf(5), BigInteger.valueOf(6))));
 	}
 
 	@Test
@@ -317,26 +318,26 @@ public class NodeTest {
 	@Test
 	void interpolatorZeroStuffs() {
 		InterpolatorNode n = new InterpolatorNode(3);
-		assertEquals(5, n.evaluate(List.of(5)));
-		assertEquals(0, n.evaluate(List.of(5)));
-		assertEquals(0, n.evaluate(List.of(5)));
-		assertEquals(6, n.evaluate(List.of(6)));
+		assertEquals(BigInteger.valueOf(5), n.evaluate(List.of(BigInteger.valueOf(5))));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of(BigInteger.valueOf(5))));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of(BigInteger.valueOf(5))));
+		assertEquals(BigInteger.valueOf(6), n.evaluate(List.of(BigInteger.valueOf(6))));
 	}
 
 	@Test
 	void interpolatorResetRestartsPhase() {
 		InterpolatorNode n = new InterpolatorNode(3);
-		n.evaluate(List.of(5));
-		n.evaluate(List.of(5));
+		n.evaluate(List.of(BigInteger.valueOf(5)));
+		n.evaluate(List.of(BigInteger.valueOf(5)));
 		n.reset();
-		assertEquals(9, n.evaluate(List.of(9)));
+		assertEquals(BigInteger.valueOf(9), n.evaluate(List.of(BigInteger.valueOf(9))));
 	}
 
 	@Test
 	void interpolatorRejectsWrongArity() {
 		InterpolatorNode n = new InterpolatorNode(2);
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1, 2)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
 	}
 
 	@Test
@@ -355,9 +356,9 @@ public class NodeTest {
 		Path f = tmp.resolve("in.csv");
 		Files.writeString(f, "1\n2\n3\n");
 		DataInNode n = new DataInNode(f.toString());
-		assertEquals(1, n.evaluate(List.of()));
-		assertEquals(2, n.evaluate(List.of()));
-		assertEquals(3, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(2), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(3), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -365,9 +366,9 @@ public class NodeTest {
 		Path f = tmp.resolve("in.csv");
 		Files.writeString(f, "5\n");
 		DataInNode n = new DataInNode(f.toString());
-		assertEquals(5, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(5), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -375,8 +376,8 @@ public class NodeTest {
 		Path f = tmp.resolve("in.csv");
 		Files.writeString(f, "5, 100\n6, 200\n");
 		DataInNode n = new DataInNode(f.toString());
-		assertEquals(5, n.evaluate(List.of()));
-		assertEquals(6, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(5), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(6), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -384,8 +385,8 @@ public class NodeTest {
 		Path f = tmp.resolve("in.csv");
 		Files.writeString(f, "time,value\n4\n7\n");
 		DataInNode n = new DataInNode(f.toString());
-		assertEquals(4, n.evaluate(List.of()));
-		assertEquals(7, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(4), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(7), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -393,8 +394,8 @@ public class NodeTest {
 		Path f = tmp.resolve("in.csv");
 		Files.writeString(f, "1\nnot a number\n2\n");
 		DataInNode n = new DataInNode(f.toString());
-		assertEquals(1, n.evaluate(List.of()));
-		assertEquals(0, n.evaluate(List.of())); // 2 is never read
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(0), n.evaluate(List.of())); // 2 is never read
 	}
 
 	@Test
@@ -402,8 +403,8 @@ public class NodeTest {
 		Path f = tmp.resolve("in.csv");
 		Files.writeString(f, "  -3 \n 4\n");
 		DataInNode n = new DataInNode(f.toString());
-		assertEquals(-3, n.evaluate(List.of()));
-		assertEquals(4, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(-3), n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(4), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -414,7 +415,7 @@ public class NodeTest {
 		n.evaluate(List.of());
 		n.evaluate(List.of());
 		n.reset();
-		assertEquals(1, n.evaluate(List.of()));
+		assertEquals(BigInteger.valueOf(1), n.evaluate(List.of()));
 	}
 
 	@Test
@@ -430,7 +431,7 @@ public class NodeTest {
 		Files.writeString(f, "1\n");
 		DataInNode n = new DataInNode(f.toString());
 		assertEquals(0, n.inputRate());
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1))));
 		assertDoesNotThrow(() -> n.checkWiring(0, 1));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(1, 1));
 		assertThrows(InvalidWiringException.class, () -> n.checkWiring(0, 0));
@@ -442,8 +443,8 @@ public class NodeTest {
 	void dataOutWritesCsvLinesAndPassesValueThrough() throws Exception {
 		Path f = tmp.resolve("out.csv");
 		DataOutNode n = new DataOutNode(f.toString());
-		assertEquals(42, n.evaluate(List.of(42)));
-		assertEquals(-1, n.evaluate(List.of(-1)));
+		assertEquals(BigInteger.valueOf(42), n.evaluate(List.of(BigInteger.valueOf(42))));
+		assertEquals(BigInteger.valueOf(-1), n.evaluate(List.of(BigInteger.valueOf(-1))));
 		assertEquals(List.of("42,", "-1,"), Files.readAllLines(f));
 	}
 
@@ -451,7 +452,7 @@ public class NodeTest {
 	void dataOutRejectsWrongArity() throws Exception {
 		DataOutNode n = new DataOutNode(tmp.resolve("out.csv").toString());
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of()));
-		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(1, 2)));
+		assertThrows(IllegalArgumentException.class, () -> n.evaluate(List.of(BigInteger.valueOf(1), BigInteger.valueOf(2))));
 		assertThrows(IllegalArgumentException.class, () -> n.evaluate(null));
 	}
 
