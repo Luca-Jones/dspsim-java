@@ -1,6 +1,7 @@
 bin/
 bintest/
 .venv/
+__pycache__/
 .classpath
 .project
 /dspsim.jar

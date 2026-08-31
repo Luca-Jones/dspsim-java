@@ -30,7 +30,11 @@ def plot(title: str, data: np.ndarray):
     f.set_xlim(0, 0.5)
     finite = mag[np.isfinite(mag)]
     lo, hi = np.percentile(finite, 1), finite.max()
-    pad = 0.05*(hi - lo) or 1.0
+    # a flat response varies only by floating-point noise; don't zoom into it
+    if hi - lo < 6:
+        mid = (hi + lo)/2
+        lo, hi = mid - 3, mid + 3
+    pad = 0.05*(hi - lo)
     lo, hi = lo - pad, hi + pad
     f.set_ylim(lo, hi)
     f.set_xlabel('f/fs')
