@@ -1,0 +1,41 @@
+DSPSIM 1
+BLOCK 1 sub 600 140 mux4_1 E
+P src=blocks/mux4.dsg
+BLOCK 2 sub 800 140 demux4_1 E
+P src=blocks/demux4.dsg
+BLOCK 3 constant 0 180 one E
+P value=1
+BLOCK 4 integrator 200 180 ramp E
+BLOCK 5 gain 400 0 g0 E
+P value=1
+BLOCK 6 gain 400 120 g1 E
+P value=2
+BLOCK 7 gain 400 240 g2 E
+P value=3
+BLOCK 8 gain 400 360 g3 E
+P value=4
+BLOCK 9 dataout 800 0 m E
+P file=m.csv
+BLOCK 10 dataout 1020 0 out0 E
+P file=y0.csv
+BLOCK 11 dataout 1020 120 out1 E
+P file=y1.csv
+BLOCK 12 dataout 1020 240 out2 E
+P file=y2.csv
+BLOCK 13 dataout 1020 360 out3 E
+P file=y3.csv
+WIRE 3 4
+WIRE 4 5
+WIRE 5 1
+WIRE 4 6
+WIRE 6 1 0 1
+WIRE 4 7
+WIRE 7 1 0 2
+WIRE 4 8
+WIRE 8 1 0 3
+WIRE 1 2
+WIRE 1 9
+WIRE 2 10
+WIRE 2 11 1 0
+WIRE 2 12 2 0
+WIRE 2 13 3 0

@@ -1,0 +1,15 @@
+digraph {
+
+	// impulse into accumulator (sum + delay feedback), gain, negative constant
+	in [type="impulse"];
+	s [type="sum"];
+	d [type="delay", delay=1];
+	g [type="gain", value=-2];
+	out [type="dataout"];
+
+	in -> s;
+	s -> d;
+	d -> s;
+	s -> g;
+	g -> out;
+}

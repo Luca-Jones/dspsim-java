@@ -780,7 +780,7 @@ public class SDFGraphTest {
 
 	@Test
 	void fileOutThenDataInRoundTrip() throws IOException {
-		// temp-file version of resources/fileout.dot + datain.dot: first graph
+		// temp-file version of examples/fileout.dot + datain.dot: first graph
 		// writes trailing-comma CSV to %IN%, second reads it back through gain 2
 		load("""
 			digraph {

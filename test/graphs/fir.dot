@@ -1,0 +1,28 @@
+digraph {
+	in[type="impulse"];
+	out[type="dataout"];
+	d1[type="delay"];
+	d2[type="delay"];
+	d3[type="delay"];
+
+	h0[type="gain", value="2"];
+	h1[type="gain", value="4"];
+	h2[type="gain", value="6"];
+	h3[type="gain", value="8"];
+
+	sout[type="sum"];
+
+	in -> h0;
+	h0 -> sout;
+	in -> d1;
+	d1 -> h1;
+	h1 -> sout;
+	d1 -> d2;
+	d2 -> h2;
+	h2 -> sout;
+	d2 -> d3;
+	d3 -> h3;
+	h3 -> sout;
+	sout -> out;
+
+}

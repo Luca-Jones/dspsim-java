@@ -112,6 +112,8 @@ public class CanvasPanel extends JPanel {
 	private double panX = 40, panY = 40;
 
 	private BlockType placing = null;
+	/** The .dsg a SUB being placed links to. */
+	private String placingSrc = null;
 	private final Set<Block> selection = new LinkedHashSet<>();
 	private Wire selectedWire = null;
 
@@ -130,7 +132,7 @@ public class CanvasPanel extends JPanel {
 
 	private record ClipBlock(BlockType type, int x, int y, Block.Dir dir,
 			LinkedHashMap<String, String> params) {}
-	private record ClipWire(int src, int dst) {}
+	private record ClipWire(int src, int srcPort, int dst, int dstPort) {}
 	private List<ClipBlock> clipBlocks = List.of();
 	private List<ClipWire> clipWires = List.of();
 	private int pasteCount = 0;
@@ -166,7 +168,12 @@ public class CanvasPanel extends JPanel {
 	}
 
 	public void setPlacing(BlockType type) {
+		setPlacing(type, null);
+	}
+
+	public void setPlacing(BlockType type, String src) {
 		placing = type;
+		placingSrc = src;
 		setCursor(type == null ? Cursor.getDefaultCursor()
 				: Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 	}
@@ -198,10 +205,23 @@ public class CanvasPanel extends JPanel {
 		return new Point2D.Double((p.x - panX) / zoom, (p.y - panY) / zoom);
 	}
 
+	/** The linked definition of a SUB block (null when its file is missing),
+	 *  growing the block to fit its ports. */
+	// ponytail: stats the file on every call (cache hit otherwise); fine for a handful of subs
+	private Subsystem.Def def(Block b) {
+		if (b.type != BlockType.SUB)
+			return null;
+		Subsystem.Def def = Subsystem.tryLoad(b, frame.baseDir());
+		int ports = def == null ? 1 : Math.max(def.ins().size(), def.outs().size());
+		b.h = Math.max(Block.H, 20 * (ports + 1));
+		return def;
+	}
+
 	private List<Anchor> anchors(Block b) {
 		List<Anchor> list = new ArrayList<>();
-		if (!b.type.isSink())
-			list.add(outputAnchor(b));
+		int outs = outputCount(b);
+		for (int i = 0; i < outs; i++)
+			list.add(outputAnchor(b, i));
 		int n = inputCount(b);
 		for (int i = 0; i < n; i++)
 			list.add(inputAnchor(b, i));
@@ -212,9 +232,9 @@ public class CanvasPanel extends JPanel {
 	private static Point2D sidePoint(Block b, Block.Dir side, int i, int n) {
 		double f = (i + 1) / (double) (n + 1);
 		return switch (side) {
-			case E -> new Point2D.Double(b.x + Block.W, b.y + Block.H * f);
-			case W -> new Point2D.Double(b.x, b.y + Block.H * f);
-			case S -> new Point2D.Double(b.x + Block.W * f, b.y + Block.H);
+			case E -> new Point2D.Double(b.x + Block.W, b.y + b.h * f);
+			case W -> new Point2D.Double(b.x, b.y + b.h * f);
+			case S -> new Point2D.Double(b.x + Block.W * f, b.y + b.h);
 			case N -> new Point2D.Double(b.x + Block.W * f, b.y);
 		};
 	}
@@ -228,7 +248,26 @@ public class CanvasPanel extends JPanel {
 			case TWO -> 2;
 			case MANY -> Math.max(Math.max(2, configuredInputs(b)),
 					diagram.wiresInto(b).size() + 1);
+			case PORTS -> {
+				Subsystem.Def def = def(b);
+				int n = def == null ? 0 : def.ins().size();
+				for (Wire w : diagram.wiresInto(b)) // keep stale wires drawable
+					n = Math.max(n, w.dstPort + 1);
+				yield n;
+			}
 		};
+	}
+
+	private int outputCount(Block b) {
+		if (b.type.isSink())
+			return 0;
+		if (b.type != BlockType.SUB)
+			return 1;
+		Subsystem.Def def = def(b);
+		int n = def == null ? 0 : def.outs().size();
+		for (Wire w : diagram.wiresOutOf(b))
+			n = Math.max(n, w.srcPort + 1);
+		return n;
 	}
 
 	private static int configuredInputs(Block b) {
@@ -244,9 +283,16 @@ public class CanvasPanel extends JPanel {
 		return new Anchor(b, false, slot, p.getX(), p.getY());
 	}
 
-	private Anchor outputAnchor(Block b) {
-		Point2D p = sidePoint(b, b.dir, 0, 1);
-		return new Anchor(b, true, 0, p.getX(), p.getY());
+	private Anchor outputAnchor(Block b, int port) {
+		Point2D p = sidePoint(b, b.dir, port, outputCount(b));
+		return new Anchor(b, true, port, p.getX(), p.getY());
+	}
+
+	/** Input slot a wire lands on: its port on a SUB, else its wire order. */
+	private int slot(Wire w) {
+		if (w.dst.type == BlockType.SUB)
+			return w.dstPort;
+		return Math.max(diagram.wiresInto(w.dst).indexOf(w), 0);
 	}
 
 	private Anchor anchorAt(Point2D m) {
@@ -289,9 +335,8 @@ public class CanvasPanel extends JPanel {
 	 * dot head-on, so the arrowhead points into the port.
 	 */
 	private List<Point2D> route(Wire w) {
-		int slot = diagram.wiresInto(w.dst).indexOf(w);
-		Anchor s = outputAnchor(w.src);
-		Anchor t = inputAnchor(w.dst, Math.max(slot, 0));
+		Anchor s = outputAnchor(w.src, w.srcPort);
+		Anchor t = inputAnchor(w.dst, slot(w));
 		Block.Dir sd = w.src.dir;             // outward at the source port
 		Block.Dir td = w.dst.dir.opposite();  // outward at the input port
 		Point2D s2 = new Point2D.Double(s.x() + STUB * sd.dx(), s.y() + STUB * sd.dy());
@@ -310,7 +355,7 @@ public class CanvasPanel extends JPanel {
 				pts.add(new Point2D.Double(mx, s.y()));
 				pts.add(new Point2D.Double(mx, t.y()));
 			} else {
-				double yc = snap(Math.max(w.src.y, w.dst.y) + Block.H + STUB);
+				double yc = snap(Math.max(w.src.y + w.src.h, w.dst.y + w.dst.h) + STUB);
 				pts.add(s2);
 				pts.add(new Point2D.Double(s2.getX(), yc));
 				pts.add(new Point2D.Double(t2.getX(), yc));
@@ -408,18 +453,19 @@ public class CanvasPanel extends JPanel {
 
 	private void paintBlock(Graphics2D g2, Block b) {
 		boolean selected = selection.contains(b);
-		RoundRectangle2D rect = new RoundRectangle2D.Double(b.x, b.y, Block.W, Block.H, 10, 10);
+		boolean missing = b.type == BlockType.SUB && def(b) == null;
+		RoundRectangle2D rect = new RoundRectangle2D.Double(b.x, b.y, Block.W, b.h, 10, 10);
 
 		g2.setColor(theme.shadow);
-		g2.fill(new RoundRectangle2D.Double(b.x + 3, b.y + 3, Block.W, Block.H, 10, 10));
+		g2.fill(new RoundRectangle2D.Double(b.x + 3, b.y + 3, Block.W, b.h, 10, 10));
 		g2.setColor(switch (b.type.category) {
 			case SOURCE -> theme.sourceFill;
 			case SINK -> theme.sinkFill;
 			default -> theme.blockFill;
 		});
 		g2.fill(rect);
-		g2.setColor(selected ? theme.sel : theme.blockBorder);
-		g2.setStroke(new BasicStroke(selected ? 2.2f : 1.3f));
+		g2.setColor(selected ? theme.sel : missing ? theme.portWarn : theme.blockBorder);
+		g2.setStroke(new BasicStroke(selected || missing ? 2.2f : 1.3f));
 		g2.draw(rect);
 
 		g2.setColor(theme.glyph);
@@ -428,7 +474,7 @@ public class CanvasPanel extends JPanel {
 		g2.setColor(theme.caption);
 		g2.setFont(getFont().deriveFont(10f));
 		FontMetrics fm = g2.getFontMetrics();
-		g2.drawString(b.name, b.x + (Block.W - fm.stringWidth(b.name)) / 2f, b.y + Block.H + 13);
+		g2.drawString(b.name, b.x + (Block.W - fm.stringWidth(b.name)) / 2f, b.y + b.h + 13);
 
 		paintPorts(g2, b);
 	}
@@ -439,13 +485,13 @@ public class CanvasPanel extends JPanel {
 	 *  the plain '/' in S/H) splits the glyph into a stacked fraction. */
 	private void paintGlyph(Graphics2D g2, Block b) {
 		String glyph = b.type.glyph(b);
-		int maxWidth = Block.W - 12;
+		int maxWidth = Block.W - (b.type == BlockType.SUB ? 40 : 12); // room for port labels
 		int frac = glyph.indexOf('⁄');
 		if (frac < 0) {
 			float size = fitSize(g2, glyph, 20f, maxWidth);
 			FontMetrics bm = g2.getFontMetrics(getFont().deriveFont(Font.BOLD, size));
 			float x = b.x + (Block.W - segmentWidth(g2, glyph, size)) / 2f;
-			float y = b.y + (Block.H + bm.getAscent() - bm.getDescent()) / 2f;
+			float y = b.y + (b.h + bm.getAscent() - bm.getDescent()) / 2f;
 			drawSegment(g2, glyph, size, x, y);
 			return;
 		}
@@ -454,7 +500,7 @@ public class CanvasPanel extends JPanel {
 		float size = Math.min(fitSize(g2, num, 13f, maxWidth), fitSize(g2, den, 13f, maxWidth));
 		FontMetrics bm = g2.getFontMetrics(getFont().deriveFont(Font.BOLD, size));
 		float cx = b.x + Block.W / 2f;
-		float cy = b.y + Block.H / 2f;
+		float cy = b.y + b.h / 2f;
 		drawSegment(g2, num, size, cx - segmentWidth(g2, num, size) / 2f, cy - 4f - bm.getDescent());
 		drawSegment(g2, den, size, cx - segmentWidth(g2, den, size) / 2f, cy + 4f + bm.getAscent());
 		float barW = Math.min(Block.W - 8f,
@@ -501,18 +547,27 @@ public class CanvasPanel extends JPanel {
 		int needed = switch (b.type.inArity) {
 			case NONE -> 0;
 			case ONE -> 1;
+			case PORTS -> Integer.MAX_VALUE; // every sub-diagram input port
 			default -> 2;
 		};
+		Set<Integer> subPorts = new java.util.HashSet<>();
+		for (Wire w : diagram.wiresInto(b))
+			subPorts.add(w.dstPort);
+		Subsystem.Def def = def(b);
 		g2.setStroke(new BasicStroke(1.6f));
 		for (Anchor a : anchors(b)) {
 			boolean hot = hover != null && hover.block() == a.block()
 					&& hover.output() == a.output() && hover.index() == a.index();
 			double r = hot ? 5 : 4;
 			Ellipse2D dot = new Ellipse2D.Double(a.x() - r, a.y() - r, 2 * r, 2 * r);
+			List<Block> named = def == null ? List.of() : a.output() ? def.outs() : def.ins();
+			if (a.index() < named.size())
+				paintPortLabel(g2, a, named.get(a.index()).name, a.output() ? b.dir : b.dir.opposite());
+			boolean filled = b.type == BlockType.SUB ? subPorts.contains(a.index()) : a.index() < wired;
 			if (a.output()) {
 				g2.setColor(hot ? theme.sel : theme.portOut);
 				g2.fill(dot);
-			} else if (a.index() < wired) {
+			} else if (filled) {
 				g2.setColor(hot ? theme.sel : theme.portIn);
 				g2.fill(dot);
 			} else {
@@ -523,6 +578,23 @@ public class CanvasPanel extends JPanel {
 				g2.draw(dot);
 			}
 		}
+	}
+
+	/** A sub-diagram port's name, just inside the block next to its dot. */
+	private void paintPortLabel(Graphics2D g2, Anchor a, String name, Block.Dir side) {
+		Color c = g2.getColor();
+		g2.setColor(theme.caption);
+		g2.setFont(getFont().deriveFont(9f));
+		FontMetrics fm = g2.getFontMetrics();
+		float w = fm.stringWidth(name), asc = fm.getAscent() - fm.getDescent();
+		float x = (float) a.x(), y = (float) a.y();
+		switch (side) {
+			case W -> g2.drawString(name, x + 7, y + asc / 2);
+			case E -> g2.drawString(name, x - 7 - w, y + asc / 2);
+			case N -> g2.drawString(name, x - w / 2, y + 7 + asc);
+			case S -> g2.drawString(name, x - w / 2, y - 7);
+		}
+		g2.setColor(c);
 	}
 
 	private void paintBand(Graphics2D g2) {
@@ -569,6 +641,10 @@ public class CanvasPanel extends JPanel {
 				Block b = diagram.addBlock(placing,
 						snap(pressModel.getX() - Block.W / 2.0),
 						snap(pressModel.getY() - Block.H / 2.0));
+				if (placingSrc != null) {
+					b.params.put("src", placingSrc);
+					b.name = diagram.uniqueName(DotWriter.nodeName(b.type.glyph(b)) + "_");
+				}
 				selection.clear();
 				selection.add(b);
 				selectedWire = null;
@@ -678,7 +754,7 @@ public class CanvasPanel extends JPanel {
 						if (!e.isControlDown() && !e.isShiftDown())
 							selection.clear();
 						for (Block b : diagram.blocks)
-							if (band.intersects(b.x, b.y, Block.W, Block.H))
+							if (band.intersects(b.x, b.y, Block.W, b.h))
 								selection.add(b);
 						selectedWire = null;
 					}
@@ -710,7 +786,9 @@ public class CanvasPanel extends JPanel {
 		public void mouseClicked(MouseEvent e) {
 			if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
 				Block b = blockAt(toModel(e.getPoint()));
-				if (b != null)
+				if (b != null && b.type == BlockType.SUB)
+					frame.openSub(b);
+				else if (b != null)
 					editProperties(b);
 			}
 		}
@@ -748,7 +826,11 @@ public class CanvasPanel extends JPanel {
 		}
 		Block src = wireFrom.output() ? wireFrom.block() : targetBlock;
 		Block dst = wireFrom.output() ? targetBlock : wireFrom.block();
-		String err = diagram.connect(src, dst);
+		Anchor srcEnd = wireFrom.output() ? wireFrom : target;
+		Anchor dstEnd = wireFrom.output() ? target : wireFrom;
+		int srcPort = srcEnd != null && srcEnd.output() ? srcEnd.index() : 0;
+		int dstPort = dstEnd != null && !dstEnd.output() ? dstEnd.index() : firstFreePort(dst);
+		String err = diagram.connect(src, srcPort, dst, dstPort);
 		if (err != null) {
 			frame.setStatus(err);
 		} else {
@@ -757,8 +839,24 @@ public class CanvasPanel extends JPanel {
 		}
 	}
 
+	/** Where a wire dropped on a block's body lands on a SUB. */
+	private int firstFreePort(Block b) {
+		int n = inputCount(b);
+		for (int i = 0; i < n; i++) {
+			final int port = i;
+			if (diagram.wiresInto(b).stream().noneMatch(w -> w.dstPort == port))
+				return i;
+		}
+		return 0;
+	}
+
 	private void editProperties(Block b) {
-		if (PropertyDialog.edit(SwingUtilities.getWindowAncestor(this), diagram, b)) {
+		// a SUB's parameters are its definition's macros, defaulting to their values
+		List<BlockType.Param> extra = new ArrayList<>();
+		Subsystem.Def def = def(b);
+		if (def != null)
+			def.d().macros.forEach((k, v) -> extra.add(new BlockType.Param(k, false, false, v, true)));
+		if (PropertyDialog.edit(SwingUtilities.getWindowAncestor(this), diagram, b, extra)) {
 			frame.setStatus("Updated " + b.name + ".");
 			frame.touch();
 			repaint();
@@ -899,7 +997,7 @@ public class CanvasPanel extends JPanel {
 		for (Wire w : diagram.wires) {
 			int si = ordered.indexOf(w.src), di = ordered.indexOf(w.dst);
 			if (si >= 0 && di >= 0)
-				cw.add(new ClipWire(si, di));
+				cw.add(new ClipWire(si, w.srcPort, di, w.dstPort));
 		}
 		clipBlocks = cb;
 		clipWires = cw;
@@ -923,7 +1021,7 @@ public class CanvasPanel extends JPanel {
 			pasted.add(b);
 		}
 		for (ClipWire c : clipWires)
-			diagram.connect(pasted.get(c.src()), pasted.get(c.dst()));
+			diagram.connect(pasted.get(c.src()), c.srcPort(), pasted.get(c.dst()), c.dstPort());
 		selection.clear();
 		selection.addAll(pasted);
 		selectedWire = null;

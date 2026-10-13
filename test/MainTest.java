@@ -1,10 +1,7 @@
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,9 +33,8 @@ public class MainTest {
 
 	@Test
 	void runsGraphFileForGivenIterations() {
-		assumeTrue(Files.exists(Path.of("resources/z.dot")), "run from repo root");
 		int[] code = new int[1];
-		String out = captureStdout(() -> code[0] = Main.run(new String[] {"resources/z.dot", "3"}));
+		String out = captureStdout(() -> code[0] = Main.run(new String[] {"test/graphs/z.dot", "3"}));
 		assertEquals("1,\n2,\n3,\n", out);
 		assertEquals(0, code[0]);
 	}

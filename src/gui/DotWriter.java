@@ -108,7 +108,11 @@ public class DotWriter {
 
 	/** The dialog enforces identifier-safe names; this is the safety net. */
 	static String nodeName(Block b) {
-		String s = b.name.replaceAll("[^A-Za-z0-9_]", "_");
+		return nodeName(b.name);
+	}
+
+	static String nodeName(String name) {
+		String s = name.replaceAll("[^A-Za-z0-9_]", "_");
 		if (s.isEmpty() || Character.isDigit(s.charAt(0)))
 			s = "_" + s;
 		return s;

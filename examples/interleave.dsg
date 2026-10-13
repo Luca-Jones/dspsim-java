@@ -1,0 +1,33 @@
+DSPSIM 1
+BLOCK 1 sub 400 140 interleave4_1 E
+P src=blocks/interleave4.dsg
+BLOCK 2 sub 600 140 deinterleave4_1 E
+P src=blocks/deinterleave4.dsg
+BLOCK 3 constant 0 0 c0 E
+P value=1
+BLOCK 4 constant 0 120 c1 E
+P value=2
+BLOCK 5 constant 0 240 c2 E
+P value=3
+BLOCK 6 constant 0 360 c3 E
+P value=4
+BLOCK 7 dataout 600 0 m E
+P file=m.csv
+BLOCK 8 dataout 820 0 out0 E
+P file=y0.csv
+BLOCK 9 dataout 820 120 out1 E
+P file=y1.csv
+BLOCK 10 dataout 820 240 out2 E
+P file=y2.csv
+BLOCK 11 dataout 820 360 out3 E
+P file=y3.csv
+WIRE 3 1
+WIRE 4 1 0 1
+WIRE 5 1 0 2
+WIRE 6 1 0 3
+WIRE 1 2
+WIRE 1 7
+WIRE 2 8
+WIRE 2 9 1 0
+WIRE 2 10 2 0
+WIRE 2 11 3 0

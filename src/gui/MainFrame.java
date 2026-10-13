@@ -50,6 +50,9 @@ import sim.SDFGraph;
  */
 public class MainFrame extends JFrame {
 
+	/** The shipped sub-diagram library, relative to the working directory. */
+	private static final String LIBRARY = "blocks";
+
 	private Diagram diagram = new Diagram();
 	private final History history = new History();
 	private final CanvasPanel canvas;
@@ -64,6 +67,12 @@ public class MainFrame extends JFrame {
 		SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
 	}
 
+	/** Opens f in a window of its own, e.g. a sub-diagram's definition. */
+	public MainFrame(File f) {
+		this();
+		load(f);
+	}
+
 	public MainFrame() {
 		super("dspsim");
 		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -71,6 +80,12 @@ public class MainFrame extends JFrame {
 			@Override public void windowClosing(WindowEvent e) {
 				if (confirmDiscard())
 					dispose();
+			}
+		});
+		// a sub-diagram may have been edited and saved in another window
+		addWindowFocusListener(new WindowAdapter() {
+			@Override public void windowGainedFocus(WindowEvent e) {
+				canvas.repaint();
 			}
 		});
 		setSize(1180, 760);
@@ -188,16 +203,32 @@ public class MainFrame extends JFrame {
 				case MATH -> "Math";
 				case RATE -> "Rate";
 				case SINK -> "Sink";
+				case SUB -> "Sub-diagram";
 			});
 			header.setFont(header.getFont().deriveFont(Font.BOLD, 10f));
 			header.setBorder(BorderFactory.createEmptyBorder(0, 4, 2, 0));
 			header.setAlignmentX(Component.LEFT_ALIGNMENT);
 			p.add(header);
 			for (BlockType t : BlockType.values())
-				if (t.category == cat)
+				if (t.category == cat && t != BlockType.SUB)
 					p.add(paletteButton(group, t.dotType, t));
 			p.add(Box.createVerticalStrut(8));
 		}
+
+		// ponytail: scanned once per window; new files reach it via Load… or a new window
+		File[] library = new File(LIBRARY).listFiles((dir, name) -> name.endsWith(".dsg"));
+		if (library != null) {
+			java.util.Arrays.sort(library);
+			for (File f : library)
+				p.add(subButton(group, f.getName().replaceAll("\\.dsg$", ""), LIBRARY + "/" + f.getName()));
+		}
+		p.add(paletteButton(group, "Load…", "place a sub-diagram from any .dsg file", () -> {
+			JFileChooser fc = chooser("dspsim diagrams (*.dsg)", "dsg");
+			if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
+				placeSub(linkPath(fc.getSelectedFile()));
+			else
+				clearPlacing();
+		}));
 		p.add(Box.createVerticalGlue());
 
 		JScrollPane sp = new JScrollPane(p, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -206,20 +237,49 @@ public class MainFrame extends JFrame {
 		return sp;
 	}
 
+	private JToggleButton subButton(ButtonGroup group, String label, String src) {
+		return paletteButton(group, label, "sub-diagram " + src + " (double-click a placed one to edit it)",
+				() -> placeSub(src));
+	}
+
+	private void placeSub(String src) {
+		canvas.setPlacing(BlockType.SUB, src);
+		setStatus("Click the canvas to place " + src + " (hold Shift to place several, Esc to cancel).");
+	}
+
+	/** How a SUB refers to f: relative to this diagram, else to the working
+	 *  directory, else absolute; see Subsystem.resolve. */
+	private String linkPath(File f) {
+		Path target = f.toPath().toAbsolutePath().normalize();
+		for (File base : new File[] { baseDir(), new File(".") }) {
+			if (base == null)
+				continue;
+			Path b = base.toPath().toAbsolutePath().normalize();
+			if (target.startsWith(b))
+				return b.relativize(target).toString();
+		}
+		return target.toString();
+	}
+
 	private JToggleButton paletteButton(ButtonGroup group, String label, BlockType type) {
-		JToggleButton b = new JToggleButton(label);
-		b.setAlignmentX(Component.LEFT_ALIGNMENT);
-		b.setMaximumSize(new Dimension(110, 28));
-		b.setFocusPainted(false);
-		if (type != null)
-			b.setToolTipText(type.description);
-		group.add(b);
-		b.addActionListener(e -> {
+		return paletteButton(group, label, type == null ? null : type.description, () -> {
 			canvas.setPlacing(type);
 			if (type != null)
 				setStatus("Click the canvas to place a " + type.dotType
 						+ " (hold Shift to place several, Esc to cancel).");
 		});
+	}
+
+	/** One click action per button: Swing runs listeners last-added first, so
+	 *  stacking a second listener would have the generic one undo it. */
+	private JToggleButton paletteButton(ButtonGroup group, String label, String tip, Runnable onClick) {
+		JToggleButton b = new JToggleButton(label);
+		b.setAlignmentX(Component.LEFT_ALIGNMENT);
+		b.setMaximumSize(new Dimension(130, 28));
+		b.setFocusPainted(false);
+		b.setToolTipText(tip);
+		group.add(b);
+		b.addActionListener(e -> onClick.run());
 		return b;
 	}
 
@@ -228,6 +288,19 @@ public class MainFrame extends JFrame {
 	public void setStatus(String s) { status.setText(" " + s); }
 
 	public void setZoomLabel(String s) { zoomLabel.setText(s); }
+
+	/** Directory sub-diagram links resolve against; null until saved. */
+	public File baseDir() {
+		return currentFile == null ? null : currentFile.getAbsoluteFile().getParentFile();
+	}
+
+	public void openSub(Block b) {
+		try {
+			new MainFrame(Subsystem.load(b.params.get("src"), baseDir()).file()).setVisible(true);
+		} catch (IOException ex) {
+			setStatus(b.name + ": " + ex.getMessage());
+		}
+	}
 
 	public void clearPlacing() {
 		selectButton.setSelected(true);
@@ -293,7 +366,10 @@ public class MainFrame extends JFrame {
 		JFileChooser fc = chooser("dspsim diagrams (*.dsg)", "dsg");
 		if (fc.showOpenDialog(this) != JFileChooser.APPROVE_OPTION)
 			return;
-		File f = fc.getSelectedFile();
+		load(fc.getSelectedFile());
+	}
+
+	private void load(File f) {
 		try {
 			diagram = Diagram.load(f);
 			currentFile = f;
@@ -340,17 +416,27 @@ public class MainFrame extends JFrame {
 
 	// ---- compile & run -----------------------------------------------------
 
-	private boolean reportProblems() {
-		List<String> problems = DotWriter.validate(diagram);
+	/** The drawing with sub-diagrams expanded, or null after showing why it
+	 *  can't be compiled. */
+	private Diagram compile() {
+		List<String> problems;
+		Diagram flat = null;
+		try {
+			flat = Flattener.flatten(diagram, baseDir());
+			problems = DotWriter.validate(flat);
+		} catch (IllegalArgumentException ex) {
+			problems = List.of(ex.getMessage());
+		}
 		if (problems.isEmpty())
-			return false;
+			return flat;
 		JOptionPane.showMessageDialog(this,
 				String.join("\n", problems), "Diagram problems", JOptionPane.WARNING_MESSAGE);
-		return true;
+		return null;
 	}
 
 	private void exportDot() {
-		if (reportProblems())
+		Diagram flat = compile();
+		if (flat == null)
 			return;
 		JFileChooser fc = chooser("Graphviz graphs (*.dot)", "dot");
 		if (fc.showSaveDialog(this) != JFileChooser.APPROVE_OPTION)
@@ -359,7 +445,7 @@ public class MainFrame extends JFrame {
 		if (!f.getName().contains("."))
 			f = new File(f.getPath() + ".dot");
 		try {
-			DotWriter.write(diagram, f.toPath());
+			DotWriter.write(flat, f.toPath());
 			setStatus("Exported " + f.getName() + ".");
 		} catch (IOException ex) {
 			JOptionPane.showMessageDialog(this, "Could not write .dot:\n" + ex,
@@ -368,7 +454,8 @@ public class MainFrame extends JFrame {
 	}
 
 	private void runSim() {
-		if (reportProblems())
+		Diagram flat = compile();
+		if (flat == null)
 			return;
 		if (currentFile == null) {
 			setStatus("Save the diagram first — the .dot file is written next to it.");
@@ -380,7 +467,7 @@ public class MainFrame extends JFrame {
 		File dotFile = new File(currentFile.getParentFile(),
 				currentFile.getName().replaceAll("\\.dsg$", "") + ".dot");
 		try {
-			DotWriter.write(diagram, dotFile.toPath());
+			DotWriter.write(flat, dotFile.toPath());
 		} catch (IOException ex) {
 			JOptionPane.showMessageDialog(this, "Could not write " + dotFile + ":\n" + ex,
 					"Compile failed", JOptionPane.ERROR_MESSAGE);
@@ -396,7 +483,7 @@ public class MainFrame extends JFrame {
 				long ms = (System.nanoTime() - t0) / 1_000_000;
 				SwingUtilities.invokeLater(() -> {
 					setStatus("Ran " + n + " iterations in " + ms + " ms.");
-					launchPlots();
+					launchPlots(flat);
 				});
 			} catch (Exception ex) {
 				SwingUtilities.invokeLater(() -> {
@@ -414,10 +501,10 @@ public class MainFrame extends JFrame {
 
 	/** Fire-and-forget matplotlib windows for every dataout CSV that exists.
 	 *  The engine writes files relative to the JVM working directory. */
-	private void launchPlots() {
+	private void launchPlots(Diagram flat) {
 		Set<String> csvs = new LinkedHashSet<>();
 		int consoleSinks = 0;
-		for (Block b : diagram.blocks) {
+		for (Block b : flat.blocks) {
 			if (b.type != BlockType.DATAOUT)
 				continue;
 			String file = b.params.getOrDefault("file", "").trim();
@@ -447,7 +534,7 @@ public class MainFrame extends JFrame {
 		try {
 			new ProcessBuilder(cmd)
 					.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-					.redirectError(ProcessBuilder.Redirect.DISCARD)
+					.redirectError(ProcessBuilder.Redirect.INHERIT) // plot errors reach the launching terminal
 					.start();
 			setStatus("Done — plotting " + String.join(", ", csvs) + "." + note);
 		} catch (IOException ex) {

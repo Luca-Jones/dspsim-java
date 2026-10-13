@@ -58,12 +58,24 @@ public enum BlockType {
 
 	DATAOUT("dataout", "→csv", Category.SINK, InArity.ONE,
 		"dumps samples to a csv file (blank = console)",
-		Param.string("file", false, "out.csv"));
+		Param.string("file", false, "out.csv")),
 
-	public enum Category { SOURCE, MATH, RATE, SINK }
+	// GUI-only: compiled away by Flattener, never reach the engine
+	INPORT("inport", "in", Category.SUB, InArity.NONE,
+		"sub-diagram input port, numbered by index",
+		Param.guiInt("index", "1")),
+	OUTPORT("outport", "out", Category.SUB, InArity.ONE,
+		"sub-diagram output port, numbered by index",
+		Param.guiInt("index", "1")),
+	SUB("sub", "sub", Category.SUB, InArity.PORTS,
+		"a sub-diagram linked from a .dsg file",
+		Param.string("src", true, ""));
 
-	/** How many wires the engine's checkWiring accepts into this node. */
-	public enum InArity { NONE, ONE, TWO, MANY }
+	public enum Category { SOURCE, MATH, RATE, SINK, SUB }
+
+	/** How many wires the engine's checkWiring accepts into this node.
+	 *  PORTS: one wire per input port of a sub-diagram. */
+	public enum InArity { NONE, ONE, TWO, MANY, PORTS }
 
 	/** engine=false marks GUI-only settings that never reach the .dot file. */
 	public record Param(String key, boolean isInt, boolean required, String defaultValue, boolean engine) {
@@ -99,6 +111,10 @@ public enum BlockType {
 	 *  Text after '^' is rendered by the canvas as a superscript, so it works
 	 *  for macro names as well as numbers. */
 	public String glyph(Block b) {
+		if (this == SUB) {
+			String src = new java.io.File(b.params.getOrDefault("src", "")).getName();
+			return src.isEmpty() ? glyph : src.replaceAll("\\.dsg$", "");
+		}
 		if (this == DATAOUT) {
 			String file = b.params.getOrDefault("file", "").trim();
 			return file.isEmpty() ? "stdout" : file;
@@ -119,13 +135,15 @@ public enum BlockType {
 			case INTERPOLATOR -> "↑" + v;
 			case HOLD -> "S/H " + v;
 			case DATAIN -> v;
+			case INPORT -> "in " + v;
+			case OUTPORT -> "out " + v;
 			default -> glyph;
 		};
 	}
 
 	public boolean isSource() { return inArity == InArity.NONE; }
 
-	public boolean isSink() { return category == Category.SINK; }
+	public boolean isSink() { return category == Category.SINK || this == OUTPORT; }
 
 	public static BlockType fromDotType(String s) {
 		for (BlockType t : values())

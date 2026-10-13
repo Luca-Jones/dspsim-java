@@ -34,6 +34,8 @@ public class Block {
 	/** Doubles as the .dot node name, so it must match [A-Za-z_][A-Za-z0-9_]*. */
 	public String name;
 	public final LinkedHashMap<String, String> params = new LinkedHashMap<>();
+	/** Height; the canvas grows it for sub-diagram blocks with many ports. */
+	public int h = H;
 
 	public Block(int id, BlockType type, int x, int y, String name) {
 		this.id = id;
@@ -46,6 +48,6 @@ public class Block {
 	}
 
 	public boolean contains(double mx, double my) {
-		return mx >= x && mx <= x + W && my >= y && my <= y + H;
+		return mx >= x && mx <= x + W && my >= y && my <= y + h;
 	}
 }

@@ -1,11 +1,9 @@
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigInteger;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -14,15 +12,14 @@ import org.junit.jupiter.api.Test;
 import sim.SDFGraph;
 
 /**
- * Runs the shipped example graphs in resources/ and checks their exact
- * output. These graphs print to stdout, which is captured per test.
- * Tests are skipped when not run from the repo root (as `make test` does).
+ * Runs the graphs in test/graphs/ and checks their exact output. These
+ * graphs print to stdout, which is captured per test. Paths are relative to
+ * the repo root, where `make test` runs.
  */
 public class ResourceGraphsTest {
 
 	private List<BigInteger> runResource(String name, int iterations) throws IOException {
-		Path file = Path.of("resources", name);
-		assumeTrue(Files.exists(file), "run from repo root to test resource graphs");
+		Path file = Path.of("test", "graphs", name);
 		PrintStream original = System.out;
 		ByteArrayOutputStream captured = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(captured, true));

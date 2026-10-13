@@ -1,0 +1,11 @@
+digraph {
+
+	in [type="Constant", value=1];
+	d1 [type="delay"];
+	d2 [type="delay"; delay = 2];
+	out [type="dataout"];
+
+	in -> d1;
+	d1 -> d2;
+	d2 -> out;
+}

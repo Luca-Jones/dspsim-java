@@ -21,7 +21,7 @@ import java.util.Map;
  *   MACRO <name>=<value>
  *   BLOCK <id> <dotType> <x> <y> <name> [<dir>]   (dir: E/S/W/N, default E)
  *   P <key>=<value>          (attaches to the preceding BLOCK)
- *   WIRE <srcId> <dstId>
+ *   WIRE <srcId> <dstId> [<srcPort> <dstPort>]   (ports: sub-diagram blocks only)
  */
 public class Diagram {
 
@@ -35,15 +35,15 @@ public class Diagram {
 	private int nextId = 1;
 
 	public Block addBlock(BlockType type, int x, int y) {
-		Block b = new Block(nextId++, type, x, y, uniqueName(type));
+		Block b = new Block(nextId++, type, x, y, uniqueName(type.dotType));
 		blocks.add(b);
 		dirty = true;
 		return b;
 	}
 
-	private String uniqueName(BlockType type) {
+	String uniqueName(String prefix) {
 		for (int i = 1;; i++) {
-			String name = type.dotType + i;
+			String name = prefix + i;
 			if (findByName(name) == null)
 				return name;
 		}
@@ -74,6 +74,16 @@ public class Diagram {
 	 * replaced. Returns an error message, or null on success.
 	 */
 	public String connect(Block src, Block dst) {
+		return connect(src, 0, dst, 0);
+	}
+
+	/** Ports only matter on sub-diagram blocks, where each input port takes
+	 *  one wire of its own. */
+	public String connect(Block src, int srcPort, Block dst, int dstPort) {
+		if (src.type != BlockType.SUB)
+			srcPort = 0;
+		if (dst.type != BlockType.SUB)
+			dstPort = 0;
 		if (src == dst)
 			return "cannot wire a block to itself";
 		if (src.type.isSink())
@@ -81,8 +91,15 @@ public class Diagram {
 		if (dst.type.inArity == BlockType.InArity.NONE)
 			return dst.name + " has no inputs";
 		for (Wire w : wires)
-			if (w.src == src && w.dst == dst)
+			if (w.src == src && w.dst == dst && w.srcPort == srcPort && w.dstPort == dstPort)
 				return src.name + " is already wired to " + dst.name;
+		if (dst.type.inArity == BlockType.InArity.PORTS) {
+			final int port = dstPort;
+			wires.removeIf(w -> w.dst == dst && w.dstPort == port);
+			wires.add(new Wire(src, srcPort, dst, dstPort));
+			dirty = true;
+			return null;
+		}
 		int capacity = switch (dst.type.inArity) {
 			case ONE -> 1;
 			case TWO -> 2;
@@ -91,7 +108,7 @@ public class Diagram {
 		List<Wire> in = wiresInto(dst);
 		if (in.size() >= capacity)
 			wires.remove(in.get(0));
-		wires.add(new Wire(src, dst));
+		wires.add(new Wire(src, srcPort, dst, dstPort));
 		dirty = true;
 		return null;
 	}
@@ -132,7 +149,8 @@ public class Diagram {
 				pw.println("P " + e.getKey() + "=" + e.getValue());
 		}
 		for (Wire w : wires)
-			pw.println("WIRE " + w.src.id + " " + w.dst.id);
+			pw.println("WIRE " + w.src.id + " " + w.dst.id
+					+ (w.srcPort == 0 && w.dstPort == 0 ? "" : " " + w.srcPort + " " + w.dstPort));
 	}
 
 	/** The diagram as .dsg text; also the undo history's state format. */
@@ -195,7 +213,9 @@ public class Diagram {
 				Block src = byId.get(Integer.parseInt(t[1]));
 				Block dst = byId.get(Integer.parseInt(t[2]));
 				if (src != null && dst != null)
-					d.wires.add(new Wire(src, dst));
+					d.wires.add(t.length > 4
+							? new Wire(src, Integer.parseInt(t[3]), dst, Integer.parseInt(t[4]))
+							: new Wire(src, dst));
 			}
 			// unknown prefixes are ignored for forward compatibility
 		}

@@ -1,0 +1,50 @@
+DSPSIM 1
+BLOCK 1 impulse 0 480 start E
+BLOCK 2 sum 160 480 count E
+P inputs=2
+BLOCK 3 delay 160 600 wrap E
+P delay=4
+BLOCK 4 sum 640 180 sum E
+P inputs=4
+BLOCK 5 outport 800 180 y E
+P index=1
+BLOCK 6 inport 0 0 x0 E
+P index=1
+BLOCK 7 delay 320 60 sel0 E
+P delay=0
+BLOCK 8 multiplier 480 0 gate0 E
+BLOCK 9 inport 0 120 x1 E
+P index=2
+BLOCK 10 delay 320 180 sel1 E
+P delay=1
+BLOCK 11 multiplier 480 120 gate1 E
+BLOCK 12 inport 0 240 x2 E
+P index=3
+BLOCK 13 delay 320 300 sel2 E
+P delay=2
+BLOCK 14 multiplier 480 240 gate2 E
+BLOCK 15 inport 0 360 x3 E
+P index=4
+BLOCK 16 delay 320 420 sel3 E
+P delay=3
+BLOCK 17 multiplier 480 360 gate3 E
+WIRE 1 2
+WIRE 2 3
+WIRE 3 2
+WIRE 2 7
+WIRE 6 8
+WIRE 7 8
+WIRE 8 4
+WIRE 2 10
+WIRE 9 11
+WIRE 10 11
+WIRE 11 4
+WIRE 2 13
+WIRE 12 14
+WIRE 13 14
+WIRE 14 4
+WIRE 2 16
+WIRE 15 17
+WIRE 16 17
+WIRE 17 4
+WIRE 4 5

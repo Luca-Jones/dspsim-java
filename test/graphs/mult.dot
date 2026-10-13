@@ -1,0 +1,11 @@
+digraph {
+
+	a [type="constant", value=3];
+	b [type="constant", value=4];
+	m [type="multiplier"];
+	out [type="dataout"];
+
+	a -> m;
+	b -> m;
+	m -> out;
+}

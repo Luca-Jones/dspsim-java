@@ -1,0 +1,39 @@
+DSPSIM 1
+BLOCK 1 inport 0 180 x E
+P index=1
+BLOCK 2 delay 160 0 d0 E
+P delay=4
+BLOCK 3 decimator 320 0 down0 E
+P ratio=4
+BLOCK 4 outport 480 0 y0 E
+P index=1
+BLOCK 5 delay 160 120 d1 E
+P delay=3
+BLOCK 6 decimator 320 120 down1 E
+P ratio=4
+BLOCK 7 outport 480 120 y1 E
+P index=2
+BLOCK 8 delay 160 240 d2 E
+P delay=2
+BLOCK 9 decimator 320 240 down2 E
+P ratio=4
+BLOCK 10 outport 480 240 y2 E
+P index=3
+BLOCK 11 delay 160 360 d3 E
+P delay=1
+BLOCK 12 decimator 320 360 down3 E
+P ratio=4
+BLOCK 13 outport 480 360 y3 E
+P index=4
+WIRE 1 2
+WIRE 2 3
+WIRE 3 4
+WIRE 1 5
+WIRE 5 6
+WIRE 6 7
+WIRE 1 8
+WIRE 8 9
+WIRE 9 10
+WIRE 1 11
+WIRE 11 12
+WIRE 12 13

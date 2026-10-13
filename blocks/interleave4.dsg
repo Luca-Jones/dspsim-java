@@ -1,0 +1,42 @@
+DSPSIM 1
+BLOCK 1 sum 500 180 sum E
+P inputs=4
+BLOCK 2 outport 660 180 y E
+P index=1
+BLOCK 3 inport 0 0 x0 E
+P index=1
+BLOCK 4 interpolator 160 0 up0 E
+P ratio=4
+BLOCK 5 delay 320 0 d0 E
+P delay=0
+BLOCK 6 inport 0 120 x1 E
+P index=2
+BLOCK 7 interpolator 160 120 up1 E
+P ratio=4
+BLOCK 8 delay 320 120 d1 E
+P delay=1
+BLOCK 9 inport 0 240 x2 E
+P index=3
+BLOCK 10 interpolator 160 240 up2 E
+P ratio=4
+BLOCK 11 delay 320 240 d2 E
+P delay=2
+BLOCK 12 inport 0 360 x3 E
+P index=4
+BLOCK 13 interpolator 160 360 up3 E
+P ratio=4
+BLOCK 14 delay 320 360 d3 E
+P delay=3
+WIRE 3 4
+WIRE 4 5
+WIRE 5 1
+WIRE 6 7
+WIRE 7 8
+WIRE 8 1
+WIRE 9 10
+WIRE 10 11
+WIRE 11 1
+WIRE 12 13
+WIRE 13 14
+WIRE 14 1
+WIRE 1 2

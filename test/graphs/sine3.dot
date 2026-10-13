@@ -1,0 +1,10 @@
+// rounding check: sin(2*pi/3)*10 = 8.66 -> 9
+// run 6 iterations
+// expected: 0, 9, -9, 0, 9, -9
+digraph {
+
+	in [type="sine", amplitude=10, period=3];
+	out [type="dataout"];
+
+	in -> out;
+}
