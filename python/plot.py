@@ -20,12 +20,19 @@ def plot(title: str, data: np.ndarray):
     t.set_ylabel('x[n]')
 
     n = max(4096, 32*len(data))
-    Xk = np.fft.rfft(data, n)
-    dc = np.abs(Xk[0])
-    Xk = Xk / Xk[0]
+    Xk = np.abs(np.fft.rfft(data, n))
+    # 0 dB is the DC gain; a zero-mean signal (e.g. a sine) has none, so
+    # normalize to its peak instead
+    peak = Xk.max()
+    if peak == 0:
+        f.text(0.5, 0.5, 'all samples are zero', ha='center', va='center', transform=f.transAxes)
+        fig.tight_layout()
+        return fig
+    has_dc = Xk[0] > 1e-9*peak
+    ref = Xk[0] if has_dc else peak
     with np.errstate(divide='ignore'):
-        mag = dB(np.abs(Xk))
-        dc_dB = dB(dc)
+        mag = dB(Xk/ref)
+        dc_dB = dB(ref)
     f.plot(np.fft.rfftfreq(n), mag)
     f.set_xlim(0, 0.5)
     finite = mag[np.isfinite(mag)]
@@ -38,7 +45,7 @@ def plot(title: str, data: np.ndarray):
     lo, hi = lo - pad, hi + pad
     f.set_ylim(lo, hi)
     f.set_xlabel('f/fs')
-    f.set_ylabel('Normalized magnitude (dB)')
+    f.set_ylabel('Magnitude re ' + ('DC' if has_dc else 'peak') + ' (dB)')
     f.axhline(0, color='0.6', lw=0.8, zorder=0)
 
     # anchor the ticks on 0 dB so the DC gain lands exactly on a tick
@@ -58,7 +65,5 @@ def plot(title: str, data: np.ndarray):
 
 if __name__ == '__main__':
     for file in sys.argv[1:]:
-        fig = plot(file, get_data(file))
-        fig.savefig(Path(file).with_suffix('.png'))
-        plt.show()
-        plt.close(fig)
+        plot(file, get_data(file)).savefig(Path(file).with_suffix('.png'))
+    plt.show()  # once, after all figures exist: show() blocks until its windows close
