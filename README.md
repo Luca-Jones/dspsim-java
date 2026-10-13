@@ -99,6 +99,36 @@ The `type` attribute selects the node (case-insensitive):
 | dataout      | string file = stdout                       | 1      | 0       |
 
 
+## Sub-diagrams (GUI)
+
+A sub-diagram is an ordinary `.dsg` file containing `inport` / `outport`
+blocks (numbered by their `index`). Place one from the palette's
+Sub-diagram section (the shipped `blocks/` library, or Load… for any `.dsg`)
+and wire its ports like any other block. Double-click a placed sub-diagram to
+open and edit its definition; saved edits show up in every diagram that links
+it. The sub-diagram's macros are its parameters: set them per instance in
+Properties…, or leave them blank to keep the sub-diagram's own values.
+
+Compiling flattens sub-diagrams into basic nodes named `<instance>_<block>`,
+so the engine and the `.dot` format are unchanged.
+
+The `blocks/` library has two kinds of N-way multiplexer:
+
+| Block           | Rate                     | Output                                         |
+|-----------------|--------------------------|------------------------------------------------|
+| `muxN`          | same as input            | `y[n] = x_{n mod N}[n]` (other samples dropped) |
+| `demuxN`        | same as input            | `y_k` latches `x` on clock `k` of each frame and holds it for the next frame |
+| `interleaveN`   | output N× the input      | `y[Nn+k] = x_k[n]` (every sample kept)          |
+| `deinterleaveN` | output 1/N of the input  | `y_k[n] = x[Nn-N+k]`                           |
+
+The counting `muxN`/`demuxN` model single-clock hardware, where a counter
+drives the select. The mux's counter is an impulse recirculating through
+`z^-N`. The engine runs every source on the base clock, so the counter counts
+base-clock samples. `interleaveN`/`deinterleaveN` are the lossless multirate
+versions, e.g. the commutator in a polyphase filter. See
+`examples/muxdemux.dsg` and `examples/interleave.dsg`.
+
+
 ## Data File Format
 
 The data within the file expected by the datain node and created by the dataout
