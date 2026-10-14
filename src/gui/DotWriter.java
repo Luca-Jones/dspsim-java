@@ -56,6 +56,10 @@ public class DotWriter {
 			if (in + out == 0)
 				problems.add(b.name + " is not connected to anything");
 		}
+		for (Wire w : d.wires)
+			if (!w.width.isEmpty() && !d.macros.containsKey(w.width) && parseWidth(w.width) < 1)
+				problems.add(w.src.name + " -> " + w.dst.name + ": width must be a positive integer"
+						+ " or a macro, was \"" + w.width + "\"");
 		return problems;
 	}
 
@@ -86,13 +90,23 @@ public class DotWriter {
 		List<Wire> sorted = new ArrayList<>(d.wires);
 		sorted.sort(Comparator.comparing((Wire w) -> w.src.name).thenComparing(w -> w.dst.name));
 		for (Wire w : sorted)
-			sb.append('\t').append(nodeName(w.src)).append(" -> ").append(nodeName(w.dst)).append(";\n");
+			sb.append('\t').append(nodeName(w.src)).append(" -> ").append(nodeName(w.dst))
+					.append(w.width.isEmpty() ? "" : " [w=" + w.width + "]").append(";\n");
 		sb.append("}\n");
 		return sb.toString();
 	}
 
 	public static void write(Diagram d, Path out) throws IOException {
 		Files.writeString(out, toDot(d));
+	}
+
+	/** A literal bus width, or -1 when v is not an integer. */
+	static int parseWidth(String v) {
+		try {
+			return Integer.parseInt(v.trim());
+		} catch (NumberFormatException e) {
+			return -1;
+		}
 	}
 
 	/** #define values are a single NUMBER, STRING, or NAME token; anything

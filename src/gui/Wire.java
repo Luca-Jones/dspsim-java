@@ -11,6 +11,8 @@ public class Wire {
 	public final Block src, dst;
 	/** Zero-based port on a sub-diagram block; always 0 elsewhere. */
 	public final int srcPort, dstPort;
+	/** Bus width in bits: an integer or a macro name; "" is unbounded. */
+	public String width = "";
 
 	public Wire(Block src, Block dst) {
 		this(src, 0, dst, 0);

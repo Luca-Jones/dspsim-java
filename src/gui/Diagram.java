@@ -21,7 +21,8 @@ import java.util.Map;
  *   MACRO <name>=<value>
  *   BLOCK <id> <dotType> <x> <y> <name> [<dir>]   (dir: E/S/W/N, default E)
  *   P <key>=<value>          (attaches to the preceding BLOCK)
- *   WIRE <srcId> <dstId> [<srcPort> <dstPort>]   (ports: sub-diagram blocks only)
+ *   WIRE <srcId> <dstId> [<srcPort> <dstPort>] [w=<width>]
+ *            (ports: sub-diagram blocks only; width: bits or a macro, absent = unbounded)
  */
 public class Diagram {
 
@@ -150,7 +151,8 @@ public class Diagram {
 		}
 		for (Wire w : wires)
 			pw.println("WIRE " + w.src.id + " " + w.dst.id
-					+ (w.srcPort == 0 && w.dstPort == 0 ? "" : " " + w.srcPort + " " + w.dstPort));
+					+ (w.srcPort == 0 && w.dstPort == 0 ? "" : " " + w.srcPort + " " + w.dstPort)
+					+ (w.width.isEmpty() ? "" : " w=" + w.width));
 	}
 
 	/** The diagram as .dsg text; also the undo history's state format. */
@@ -209,13 +211,20 @@ public class Diagram {
 				if (eq > 0)
 					cur.params.put(kv.substring(0, eq).trim(), kv.substring(eq + 1).trim());
 			} else if (line.startsWith("WIRE ")) {
-				String[] t = line.split("\\s+");
-				Block src = byId.get(Integer.parseInt(t[1]));
-				Block dst = byId.get(Integer.parseInt(t[2]));
-				if (src != null && dst != null)
-					d.wires.add(t.length > 4
-							? new Wire(src, Integer.parseInt(t[3]), dst, Integer.parseInt(t[4]))
-							: new Wire(src, dst));
+				List<String> t = new ArrayList<>(List.of(line.split("\\s+")));
+				String width = "";
+				for (int i = t.size() - 1; i > 0; i--)
+					if (t.get(i).startsWith("w="))
+						width = t.remove(i).substring(2);
+				Block src = byId.get(Integer.parseInt(t.get(1)));
+				Block dst = byId.get(Integer.parseInt(t.get(2)));
+				if (src != null && dst != null) {
+					Wire w = t.size() > 4
+							? new Wire(src, Integer.parseInt(t.get(3)), dst, Integer.parseInt(t.get(4)))
+							: new Wire(src, dst);
+					w.width = width;
+					d.wires.add(w);
+				}
 			}
 			// unknown prefixes are ignored for forward compatibility
 		}

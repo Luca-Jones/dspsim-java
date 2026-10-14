@@ -90,6 +90,12 @@ public class ParserTest {
 	}
 
 	@Test
+	void edgeWithAttributes() {
+		GraphConfig gc = parse("digraph { a; b; a -> b [w=8]; }");
+		assertEquals(new EdgeConfig("a", "b", Map.of("w", "8")), gc.edgeConfigs().get(0));
+	}
+
+	@Test
 	void multipleNodesAndEdges() {
 		GraphConfig gc = parse("""
 			digraph {

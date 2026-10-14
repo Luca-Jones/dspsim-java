@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -15,6 +14,7 @@ import java.util.Queue;
 import java.util.Set;
 
 import graph.Digraph;
+import graph.EdgeConfig;
 import graph.GraphConfig;
 import node.Node;
 import node.NodeFactory;
@@ -27,7 +27,7 @@ public class SDFGraph {
 	private Digraph<Node> graph;
 	private Map<Node, Integer> multiplicities;
 	private List<Node> schedule;
-	private PairMap<Node, Queue<BigInteger>> buses;
+	private PairMap<Node, Bus> buses;
 
 	private SDFGraph(GraphConfig gc) {
 		NodeFactory factory = new NodeFactory();
@@ -43,16 +43,44 @@ public class SDFGraph {
 		List<Token> tokens = Preprocessor.process(rawTokens);
 		Parser parser = new Parser(tokens);
 		GraphConfig gc = parser.parseGraph();
+		for (EdgeConfig ec : gc.edgeConfigs())
+			busWidth(ec);
 		SDFGraph sdf = new SDFGraph(gc);
 		for (Node node : sdf.graph.getVertices()) {
 			node.checkWiring(sdf.graph.getParents(node).size(), sdf.graph.getChildren(node).size());
 			for (Node child : sdf.graph.getChildren(node)) {
-				sdf.buses.put(node, child, new ArrayDeque<>());
+				sdf.buses.put(node, child, new Bus(busWidth(sdf.graph.getEdgeAttributes(node, child))));
 			}
 		}
 		sdf.multiplicities = multiplicities(sdf.graph);
 		sdf.schedule = schedule(sdf.graph, sdf.multiplicities);
 		return sdf;
+	}
+
+	/** Checks an edge's attributes, naming the edge in the error. */
+	private static void busWidth(EdgeConfig ec) {
+		try {
+			busWidth(ec.attributes());
+		} catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException(ec.from() + " -> " + ec.to() + ": " + e.getMessage());
+		}
+	}
+
+	/** The w attribute, or Bus.UNBOUNDED when absent. */
+	private static int busWidth(Map<String, String> attrs) {
+		for (String key : attrs.keySet())
+			if (!key.equals("w"))
+				throw new IllegalArgumentException("unknown edge attribute " + key);
+		if (!attrs.containsKey("w"))
+			return Bus.UNBOUNDED;
+		try {
+			int w = Integer.parseInt(attrs.get("w"));
+			if (w >= 1)
+				return w;
+		} catch (NumberFormatException ignored) {
+			// reported below
+		}
+		throw new IllegalArgumentException("w must be a positive integer, was " + attrs.get("w"));
 	}
 
 	private static Map<Node, Integer> multiplicities(Digraph<Node> graph) {
@@ -206,7 +234,7 @@ public class SDFGraph {
 			for (int i = 0; i < node.outputRate(); i++) {
 				BigInteger output = node.evaluate(inputs);
 				for (Node child : graph.getChildren(node)) {
-					buses.get(node, child).add(output);
+					buses.get(node, child).push(output);
 				}
 			}
 		}
@@ -218,7 +246,7 @@ public class SDFGraph {
 			for (Node child : graph.getChildren(node)) {
 				buses.get(node, child).clear();
 				for (int i = 0; i < node.initialTokens(); i++) {
-					buses.get(node, child).add(BigInteger.ZERO);
+					buses.get(node, child).push(BigInteger.ZERO);
 				}
 			}
 		}

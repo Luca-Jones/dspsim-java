@@ -413,6 +413,104 @@ public class SDFGraphTest {
 		assertEquals(List.of(BigInteger.valueOf(1), BigInteger.valueOf(0), BigInteger.valueOf(1), BigInteger.valueOf(0)), output());
 	}
 
+	// ---------- bus widths ----------
+
+	private static List<BigInteger> ints(long... vs) {
+		return java.util.Arrays.stream(vs).mapToObj(BigInteger::valueOf).toList();
+	}
+
+	@Test
+	void integratorWrapsOnNarrowOutputBus() throws IOException {
+		// a 4-bit accumulator counts 0..7, then wraps to -8
+		List<BigInteger> out = run("""
+			digraph {
+				in [type="constant", value=1];
+				i [type="integrator"];
+				out [type="dataout", file="%OUT%"];
+				in -> i;
+				i -> out [w=4];
+			}
+			""", 20);
+		assertEquals(ints(0, 1, 2, 3, 4, 5, 6, 7, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3), out);
+	}
+
+	@Test
+	void delayStoresInputWidthAndTruncatesAtOutput() throws IOException {
+		// 300 fits 16 bits, so the delay holds 300; the 8-bit output keeps 44
+		List<BigInteger> out = run("""
+			digraph {
+				in [type="constant", value=300];
+				d [type="delay"];
+				wide [type="dataout", file="%OUT2%"];
+				out [type="dataout", file="%OUT%"];
+				in -> d [w=16];
+				d -> out [w=8];
+				d -> wide;
+			}
+			""", 3);
+		assertEquals(ints(0, 44, 44), out);
+		assertEquals(ints(0, 300, 300), output("out2.csv"));
+	}
+
+	@Test
+	void widerBusSignExtends() throws IOException {
+		// 13 on 4 bits is -3, and stays -3 on 16 bits
+		List<BigInteger> out = run("""
+			digraph {
+				in [type="constant", value=13];
+				g [type="gain", value=1];
+				out [type="dataout", file="%OUT%"];
+				in -> g [w=4];
+				g -> out [w=16];
+			}
+			""", 2);
+		assertEquals(ints(-3, -3), out);
+	}
+
+	@Test
+	void sumComputesInFullPrecisionThenWraps() throws IOException {
+		// 100 + 100 = 200 does not fit 8 bits: -56
+		List<BigInteger> out = run("""
+			digraph {
+				a [type="constant", value=100];
+				b [type="constant", value=100];
+				s [type="sum"];
+				out [type="dataout", file="%OUT%"];
+				a -> s [w=8];
+				b -> s [w=8];
+				s -> out [w=8];
+			}
+			""", 1);
+		assertEquals(ints(-56), out);
+	}
+
+	@Test
+	void busWidthFromMacro() throws IOException {
+		List<BigInteger> out = run("""
+			#define W 4
+			digraph {
+				in [type="constant", value=9];
+				out [type="dataout", file="%OUT%"];
+				in -> out [w=W];
+			}
+			""", 1);
+		assertEquals(ints(-7), out);
+	}
+
+	@Test
+	void badBusWidthsThrow() {
+		for (String attrs : List.of("w=0", "w=-3", "w=\"abc\"", "width=8")) {
+			RuntimeException e = assertThrows(IllegalArgumentException.class, () -> load("""
+				digraph {
+					in [type="constant", value=1];
+					out [type="dataout", file="%OUT%"];
+					in -> out [%A%];
+				}
+				""".replace("%A%", attrs)), attrs);
+			assertTrue(e.getMessage().contains("in -> out"), e.getMessage());
+		}
+	}
+
 	// ---------- load-time errors ----------
 
 	@Test

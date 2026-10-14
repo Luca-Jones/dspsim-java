@@ -22,12 +22,19 @@ import java.util.Map;
  * The sub-diagram's macros are its parameters: each one takes the
  * instance's value when set, else the macro's own, and is substituted into
  * the copied param values, so sub-diagram macros never reach the .dot file.
+ * Wire widths are bound the same way. Where a port joins two wires into one,
+ * the flattened wire takes the narrower width: slicing a slice keeps the
+ * smaller one.
  */
 public class Flattener {
 
+	/** A flattened block at the far end of a port, with the narrowest bus
+	 *  width ("" = unbounded) along the way there. */
+	private record Tap(Block block, String width) {}
+
 	/** What a diagram's ports connect to once flattened: per inport, the
 	 *  blocks it feeds; per outport, the block driving it (null if none). */
-	private record Ports(List<List<Block>> inTargets, List<Block> outDrivers) {}
+	private record Ports(List<List<Tap>> inTargets, List<Tap> outDrivers) {}
 
 	/** Throws IllegalArgumentException with a user-facing message. */
 	public static Diagram flatten(Diagram top, File baseDir) {
@@ -73,26 +80,34 @@ public class Flattener {
 			if (w.src.type == BlockType.INPORT && w.dst.type == BlockType.OUTPORT)
 				throw new IllegalArgumentException(prefix + w.src.name + " is wired straight to "
 						+ prefix + w.dst.name + "; route it through a block (e.g. a delay of 0)");
-			List<Block> targets = switch (w.dst.type) {
+			String width = bind.getOrDefault(w.width.trim(), w.width.trim());
+			List<Tap> targets = switch (w.dst.type) {
 				case OUTPORT -> null;
 				case SUB -> port(subs.get(w.dst).inTargets, w.dstPort, prefix + w.dst.name, "input");
-				default -> List.of(flat.get(w.dst));
+				default -> List.of(new Tap(flat.get(w.dst), ""));
 			};
 			if (w.src.type == BlockType.INPORT) {
-				ports.inTargets.get(ins.indexOf(w.src)).addAll(targets);
+				for (Tap t : targets)
+					ports.inTargets.get(ins.indexOf(w.src))
+							.add(new Tap(t.block, narrower(width, t.width, out.macros)));
 				continue;
 			}
-			Block src = w.src.type == BlockType.SUB
+			Tap src = w.src.type == BlockType.SUB
 					? port(subs.get(w.src).outDrivers, w.srcPort, prefix + w.src.name, "output")
-					: flat.get(w.src);
+					: new Tap(flat.get(w.src), "");
 			if (src == null)
 				throw new IllegalArgumentException(prefix + w.src.name + " output "
 						+ (w.srcPort + 1) + " is not driven inside its sub-diagram");
-			if (targets == null)
-				ports.outDrivers.set(outs.indexOf(w.dst), src);
-			else
-				for (Block t : targets)
-					out.wires.add(new Wire(src, t));
+			width = narrower(src.width, width, out.macros);
+			if (targets == null) {
+				ports.outDrivers.set(outs.indexOf(w.dst), new Tap(src.block, width));
+			} else {
+				for (Tap t : targets) {
+					Wire c = new Wire(src.block, t.block);
+					c.width = narrower(width, t.width, out.macros);
+					out.wires.add(c);
+				}
+			}
 		}
 		return ports;
 	}
@@ -121,6 +136,24 @@ public class Flattener {
 		Ports p = expand(def.d(), def.file().getParentFile(), where + "_", childBind, stack, out);
 		stack.pop();
 		return p;
+	}
+
+	/** The narrower of two bus widths, keeping its original spelling (an
+	 *  integer or a top-level macro); "" is unbounded. */
+	private static String narrower(String a, String b, Map<String, String> macros) {
+		if (a.isEmpty() || a.equals(b))
+			return b;
+		if (b.isEmpty())
+			return a;
+		return bits(a, macros) <= bits(b, macros) ? a : b;
+	}
+
+	private static int bits(String width, Map<String, String> macros) {
+		int n = DotWriter.parseWidth(macros.getOrDefault(width, width));
+		if (n < 1)
+			throw new IllegalArgumentException("bus width \"" + width + "\" must be a positive integer"
+					+ " or a macro naming one");
+		return n;
 	}
 
 	private static <T> T port(List<T> ports, int i, String block, String kind) {

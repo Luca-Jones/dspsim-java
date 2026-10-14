@@ -175,4 +175,82 @@ public class FlattenerTest {
 		assertEquals(List.of(3, 0, 2), back.wires.stream().map(w -> w.dstPort).toList());
 		assertEquals(List.of(0, 1, 0), back.wires.stream().map(w -> w.srcPort).toList());
 	}
+
+	/** x -[W]-> gain -[12]-> y, with MACRO W=10. */
+	private void widthSub() throws IOException {
+		Diagram d = new Diagram();
+		d.macros.put("W", "10");
+		Block in = d.addBlock(BlockType.INPORT, 0, 0);
+		Block g = d.addBlock(BlockType.GAIN, 100, 0);
+		g.params.put("value", "1");
+		Block out = d.addBlock(BlockType.OUTPORT, 200, 0);
+		d.connect(in, g);
+		d.wires.getLast().width = "W";
+		d.connect(g, out);
+		d.wires.getLast().width = "12";
+		d.save(tmp.resolve("w.dsg").toFile());
+	}
+
+	private Diagram widthParent(String w) {
+		Diagram d = new Diagram();
+		Block c = d.addBlock(BlockType.CONSTANT, 0, 0);
+		c.params.put("value", "1");
+		Block s = d.addBlock(BlockType.SUB, 100, 0);
+		s.params.put("src", "w.dsg");
+		if (w != null)
+			s.params.put("W", w);
+		Block o = d.addBlock(BlockType.DATAOUT, 200, 0);
+		d.connect(c, s);
+		d.wires.getLast().width = "8";
+		d.connect(s, o);
+		d.wires.getLast().width = "16";
+		return d;
+	}
+
+	@Test
+	void narrowerWidthWinsAcrossAPort() throws IOException {
+		widthSub();
+		File dir = tmp.toFile();
+		String dot = DotWriter.toDot(Flattener.flatten(widthParent(null), dir));
+		assertTrue(dot.contains("constant1 -> sub1_gain1 [w=8];"), dot);
+		assertTrue(dot.contains("sub1_gain1 -> dataout1 [w=12];"), dot);
+
+		dot = DotWriter.toDot(Flattener.flatten(widthParent("6"), dir));
+		assertTrue(dot.contains("constant1 -> sub1_gain1 [w=6];"), "sub macro bound per instance: " + dot);
+
+		Diagram parent = widthParent("K");
+		parent.macros.put("K", "4");
+		Diagram flat = Flattener.flatten(parent, dir);
+		assertTrue(DotWriter.validate(flat).isEmpty(), DotWriter.validate(flat).toString());
+		dot = DotWriter.toDot(flat);
+		assertTrue(dot.contains("constant1 -> sub1_gain1 [w=K];"), "parent macro kept by name: " + dot);
+	}
+
+	@Test
+	void invalidWireWidthIsReported() {
+		Diagram d = new Diagram();
+		Block c = d.addBlock(BlockType.CONSTANT, 0, 0);
+		c.params.put("value", "1");
+		d.connect(c, d.addBlock(BlockType.DATAOUT, 100, 0));
+		d.wires.getLast().width = "NOPE";
+		assertEquals(1, DotWriter.validate(d).size(), DotWriter.validate(d).toString());
+		d.macros.put("NOPE", "3");
+		assertTrue(DotWriter.validate(d).isEmpty(), DotWriter.validate(d).toString());
+	}
+
+	@Test
+	void wireWidthSurvivesSaveAndLoad() {
+		Diagram d = new Diagram();
+		Block c = d.addBlock(BlockType.CONSTANT, 0, 0);
+		Block s = d.addBlock(BlockType.SUB, 100, 0);
+		Block o = d.addBlock(BlockType.DATAOUT, 200, 0);
+		d.connect(c, 0, s, 1);
+		d.wires.getLast().width = "BITS";
+		d.connect(s, o);
+		d.wires.getLast().width = "8";
+		d.connect(c, 0, s, 0);
+		Diagram back = Diagram.fromSnapshot(d.snapshot());
+		assertEquals(List.of("BITS", "8", ""), back.wires.stream().map(w -> w.width).toList());
+		assertEquals(1, back.wires.get(0).dstPort);
+	}
 }

@@ -99,6 +99,46 @@ The `type` attribute selects the node (case-insensitive):
 | dataout      | string file = stdout                       | 1      | 0       |
 
 
+## Bus widths
+
+By default a bus (edge) carries unbounded integers. Give it a width in bits
+with a `w` attribute on the edge:
+
+```dot
+#define BITS 12
+digraph {
+    in [type="constant", value=1];
+    acc [type="integrator"];
+    out [type="dataout"];
+    in -> acc [w=8];
+    acc -> out [w=BITS];
+}
+```
+
+A `w`-bit bus holds `w`-bit two's complement values, modelling a wire slice
+`[w-1:0]`:
+
+- Nodes compute in full precision. The result is then wrapped to the low `w`
+  bits of each output bus, so overflow wraps (`127 + 1` becomes `-128` on 8
+  bits). Saturation would need extra logic in hardware and is not modelled.
+- A narrower value on a wider bus is sign-extended, which leaves its value
+  unchanged.
+- Nodes with memory (delay, comb, hold, decimator, interpolator) store what
+  arrives on their input bus, at the input width.
+- The integrator's register *is* its output, so it behaves as an accumulator
+  of its output bus width. That is what a CIC filter needs.
+- Narrowing drops the top bits. To drop low bits instead (the usual way to
+  narrow a DSP signal), put an `rshift` before the narrow bus.
+- One node may drive buses of different widths. Each destination gets its own
+  slice.
+
+In the GUI, right-click a wire and pick **Bit width**. A width can be a number
+or a macro name, and only wires with a width set show the `/N` mark. Inside a
+sub-diagram, a width can be one of its macros, so it can be set per instance.
+Where a wire enters or leaves a sub-diagram through a port, the narrower of the
+two widths applies.
+
+
 ## Sub-diagrams (GUI)
 
 A sub-diagram is an ordinary `.dsg` file containing `inport` / `outport`

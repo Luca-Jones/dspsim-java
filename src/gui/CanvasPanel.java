@@ -29,9 +29,12 @@ import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
@@ -132,7 +135,7 @@ public class CanvasPanel extends JPanel {
 
 	private record ClipBlock(BlockType type, int x, int y, Block.Dir dir,
 			LinkedHashMap<String, String> params) {}
-	private record ClipWire(int src, int srcPort, int dst, int dstPort) {}
+	private record ClipWire(int src, int srcPort, int dst, int dstPort, String width) {}
 	private List<ClipBlock> clipBlocks = List.of();
 	private List<ClipWire> clipWires = List.of();
 	private int pasteCount = 0;
@@ -442,6 +445,26 @@ public class CanvasPanel extends JPanel {
 		arrow.lineTo(bx + in.dy() * half, by - in.dx() * half);
 		arrow.closePath();
 		g2.fill(arrow);
+		if (!w.width.isEmpty())
+			paintWidth(g2, pts, w.width);
+	}
+
+	/** The schematic bus-width mark: a slash across the middle of the
+	 *  longest segment, labelled with the width. */
+	private void paintWidth(Graphics2D g2, List<Point2D> pts, String width) {
+		int best = 0;
+		for (int i = 1; i + 1 < pts.size(); i++)
+			if (pts.get(i).distance(pts.get(i + 1)) > pts.get(best).distance(pts.get(best + 1)))
+				best = i;
+		Point2D a = pts.get(best), b = pts.get(best + 1);
+		double mx = (a.getX() + b.getX()) / 2, my = (a.getY() + b.getY()) / 2;
+		g2.draw(new Line2D.Double(mx - 4, my + 6, mx + 4, my - 6));
+		g2.setFont(getFont().deriveFont(10f));
+		FontMetrics fm = g2.getFontMetrics();
+		if (a.getY() == b.getY()) // horizontal: label above
+			g2.drawString(width, (float) (mx + 2 - fm.stringWidth(width) / 2.0), (float) (my - 8));
+		else // vertical: label to the right
+			g2.drawString(width, (float) (mx + 7), (float) (my + (fm.getAscent() - fm.getDescent()) / 2.0));
 	}
 
 	private void paintPendingWire(Graphics2D g2) {
@@ -887,6 +910,8 @@ public class CanvasPanel extends JPanel {
 		} else if (w != null) {
 			selectedWire = w;
 			selection.clear();
+			menu.add(widthMenu(w));
+			menu.addSeparator();
 			JMenuItem del = new JMenuItem("Delete wire");
 			del.addActionListener(ev -> deleteSelection());
 			menu.add(del);
@@ -896,6 +921,55 @@ public class CanvasPanel extends JPanel {
 			menu.add(reset);
 		}
 		menu.show(this, e.getX(), e.getY());
+	}
+
+	private static final String[] WIDTHS = {"8", "12", "16", "18", "24", "32"};
+
+	/** Bus width choices for a wire; the current one is checked. */
+	private JMenu widthMenu(Wire w) {
+		JMenu m = new JMenu("Bit width");
+		JRadioButtonMenuItem unbounded = new JRadioButtonMenuItem("Unbounded (default)", w.width.isEmpty());
+		unbounded.addActionListener(ev -> setWidth(w, ""));
+		m.add(unbounded);
+		m.addSeparator();
+		boolean preset = w.width.isEmpty();
+		for (String bits : WIDTHS) {
+			JRadioButtonMenuItem it = new JRadioButtonMenuItem(bits + " bits", w.width.equals(bits));
+			it.addActionListener(ev -> setWidth(w, bits));
+			m.add(it);
+			preset |= w.width.equals(bits);
+		}
+		m.addSeparator();
+		JRadioButtonMenuItem custom = new JRadioButtonMenuItem(
+				preset ? "Custom…" : "Custom (" + w.width + ")…", !preset);
+		custom.addActionListener(ev -> customWidth(w));
+		m.add(custom);
+		return m;
+	}
+
+	private void customWidth(Wire w) {
+		String v = JOptionPane.showInputDialog(this,
+				"Bus width in bits (an integer or a macro name; blank = unbounded):", w.width);
+		if (v == null)
+			return;
+		v = v.trim();
+		if (!v.isEmpty() && DotWriter.parseWidth(v) < 1 && !v.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+			JOptionPane.showMessageDialog(this, "Width must be a positive integer or a macro name.",
+					"Invalid width", JOptionPane.WARNING_MESSAGE);
+			return;
+		}
+		setWidth(w, v);
+	}
+
+	private void setWidth(Wire w, String width) {
+		if (w.width.equals(width))
+			return;
+		w.width = width;
+		diagram.dirty = true;
+		frame.setStatus(w.src.name + " -> " + w.dst.name + ": "
+				+ (width.isEmpty() ? "unbounded" : width + (DotWriter.parseWidth(width) > 0 ? " bits" : "")) + ".");
+		frame.touch();
+		repaint();
 	}
 
 	private JMenuItem popupItem(String label, Runnable r) {
@@ -997,7 +1071,7 @@ public class CanvasPanel extends JPanel {
 		for (Wire w : diagram.wires) {
 			int si = ordered.indexOf(w.src), di = ordered.indexOf(w.dst);
 			if (si >= 0 && di >= 0)
-				cw.add(new ClipWire(si, w.srcPort, di, w.dstPort));
+				cw.add(new ClipWire(si, w.srcPort, di, w.dstPort, w.width));
 		}
 		clipBlocks = cb;
 		clipWires = cw;
@@ -1021,7 +1095,8 @@ public class CanvasPanel extends JPanel {
 			pasted.add(b);
 		}
 		for (ClipWire c : clipWires)
-			diagram.connect(pasted.get(c.src()), c.srcPort(), pasted.get(c.dst()), c.dstPort());
+			if (diagram.connect(pasted.get(c.src()), c.srcPort(), pasted.get(c.dst()), c.dstPort()) == null)
+				diagram.wires.getLast().width = c.width(); // connect appends the new wire
 		selection.clear();
 		selection.addAll(pasted);
 		selectedWire = null;

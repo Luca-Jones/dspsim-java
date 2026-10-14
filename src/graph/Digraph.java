@@ -9,18 +9,20 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-import org.w3c.dom.Node;
+import util.PairMap;
 
 public class Digraph<V> {
 
 	private Map<String, V> vertices;
 	private Map<V, List<V>> children;
 	private Map<V, List<V>> parents;
+	private PairMap<V, Map<String, String>> edgeAttributes;
 
 	public Digraph(GraphConfig config, VertexFactory<V> factory) {
 		vertices = new HashMap<>();
 		children = new IdentityHashMap<>();
 		parents = new IdentityHashMap<>();
+		edgeAttributes = new PairMap<>();
 		for (VertexConfig vc : config.vertexConfigs())
 			addVertex(vc, factory);
 		for (EdgeConfig ec : config.edgeConfigs())
@@ -50,6 +52,7 @@ public class Digraph<V> {
 			List<V> toParents = parents.get(to);
 			toParents.add(from);
 			parents.put(to, toParents);
+			edgeAttributes.put(from, to, ec.attributes());
 	}
 
 	private void checkFloatingVertices() {
@@ -77,5 +80,12 @@ public class Digraph<V> {
 		return parents.get(vertex);
 	}
 
-}
+	/** The attributes written on the edge from -> to, e.g. its bus width. */
+	public Map<String, String> getEdgeAttributes(V from, V to) {
+		Map<String, String> attrs = edgeAttributes.get(from, to);
+		if (attrs == null)
+			throw new NoSuchElementException();
+		return attrs;
+	}
 
+}

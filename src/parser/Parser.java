@@ -10,7 +10,7 @@ import graph.*;
 /**
  * graph   := DIGRAPH LBRACE nodedef* edge* RBRACE
  * nodedef := NAME attrs? SEMICOLON
- * bus     := NAME ARROW NAME SEMICOLON
+ * bus     := NAME ARROW NAME attrs? SEMICOLON
  * attrs   := LBRACKET ( prop (";"|"," prop)* )? RBRACKET
  * prop    := NAME "=" value
  * value   := NUMBER | STRING | NAME
@@ -86,8 +86,9 @@ public class Parser {
 		String from = expect(TokenType.NAME).text();
 		expect(TokenType.ARROW);
 		String to = expect(TokenType.NAME).text();
+		Map<String, String> attrs = peek().type() == TokenType.LBRACKET ? parseAttrs() : Map.of();
 		expect(TokenType.SEMICOLON);
-		return new EdgeConfig(from, to);
+		return new EdgeConfig(from, to, attrs);
 	}
 
 	private Token peek() {
