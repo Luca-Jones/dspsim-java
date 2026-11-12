@@ -9,7 +9,9 @@ def dB(x):
 
 def get_data(file: str) -> np.ndarray:
     with open(file) as f:
-        return np.array([int(line.split(',')[0]) for line in f if line.strip(', \n')])
+        # samples are arbitrary-precision BigIntegers; values past int64 would
+        # make an object array that numpy's FFT rejects, so plot as float
+        return np.array([int(line.split(',')[0]) for line in f if line.strip(', \n')], dtype=float)
 
 def plot(title: str, data: np.ndarray):
     fig, (t, f) = plt.subplots(1, 2, figsize=(12, 4))
