@@ -634,14 +634,13 @@ public class SDFGraphTest {
 	void inconsistentSampleRatesThrow() {
 		assertThrows(SDFGraph.InconsistentSampleRateException.class, () -> load("""
 			digraph {
-				a [type="impulse"];
-				b [type="impulse"];
-				up [type="interpolator", ratio=2];
+				in [type="impulse"];
+				down [type="decimator", ratio=2];
 				s [type="sum"];
 				out [type="dataout", file="%OUT%"];
-				a -> up;
-				up -> s;
-				b -> s;
+				in -> down;
+				down -> s;
+				in -> s;
 				s -> out;
 			}
 			"""));

@@ -87,15 +87,22 @@ public class SDFGraph {
 		Map<Node, Fraction> fractions = new IdentityHashMap<>();
 		Queue<Node> queue = new LinkedList<>();
 		Set<Node> visited = new HashSet<>();
-		graph.getVertices().stream().filter(n -> n.inputRate() == 0).forEach(queue::add);
-		if (queue.isEmpty())
+		List<Node> sources = graph.getVertices().stream().filter(n -> n.inputRate() == 0).toList();
+		if (sources.isEmpty())
 			throw new RuntimeException("Graph has no source node (a node with input rate 0).");
 
-		while (!queue.isEmpty()) {
+		Queue<Node> seeds = new LinkedList<>(sources);
+		while (!queue.isEmpty() || !seeds.isEmpty()) {
+			if (queue.isEmpty()) {
+				Node seed = seeds.poll();
+				if (fractions.containsKey(seed))
+					continue;
+				fractions.put(seed, new Fraction(1, 1));
+				queue.add(seed);
+			}
+
 			Node node = queue.poll();
 			visited.add(node);
-			if (!fractions.containsKey(node))
-				fractions.put(node, new Fraction(1, 1));
 			Fraction nf = fractions.get(node);
 			for (Node child : graph.getChildren(node)) {
 				if (!fractions.containsKey(child)) {
@@ -125,6 +132,18 @@ public class SDFGraph {
 
 				if (!visited.contains(child))
 					queue.add(child);
+			}
+
+			for (Node parent : graph.getParents(node)) {
+				if (!fractions.containsKey(parent)) {
+					fractions.put(parent,
+						new Fraction(
+							node.inputRate() * nf.num(),
+							parent.outputRate() * nf.den()
+						)
+					);
+					queue.add(parent);
+				}
 			}
 		}
 
