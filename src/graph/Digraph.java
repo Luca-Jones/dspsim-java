@@ -1,6 +1,7 @@
 package graph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -66,6 +67,11 @@ public class Digraph<V> {
 	public Set<V> getVertices() {
 		assert(children.keySet().equals(parents.keySet()));
 		return new HashSet<>(children.keySet());
+	}
+
+	/** Every vertex by its name in the graph config. */
+	public Map<String, V> getVertexNames() {
+		return Collections.unmodifiableMap(vertices);
 	}
 
 	public List<V> getChildren(V vertex) {

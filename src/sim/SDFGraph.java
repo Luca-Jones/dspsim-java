@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
@@ -12,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 
 import graph.Digraph;
 import graph.EdgeConfig;
@@ -28,6 +32,7 @@ public class SDFGraph {
 	private Map<Node, Integer> multiplicities;
 	private List<Node> schedule;
 	private PairMap<Node, Bus> buses;
+	private Map<String, Ratio> sinkRates;
 
 	private SDFGraph(GraphConfig gc) {
 		NodeFactory factory = new NodeFactory();
@@ -35,6 +40,7 @@ public class SDFGraph {
 		multiplicities = new IdentityHashMap<>();
 		schedule = new ArrayList<>();
 		buses = new PairMap<>();
+		sinkRates = Map.of();
 	}
 
 	public static SDFGraph loadFromFile(String filename) throws IOException {
@@ -54,6 +60,7 @@ public class SDFGraph {
 		}
 		sdf.multiplicities = multiplicities(sdf.graph);
 		sdf.schedule = schedule(sdf.graph, sdf.multiplicities);
+		sdf.sinkRates = sinkRates(sdf.graph, sdf.multiplicities);
 		return sdf;
 	}
 
@@ -166,6 +173,64 @@ public class SDFGraph {
 		}
 	}
 
+	/**
+	 * Each sink's sample rate as a fraction of the highest sample rate in its
+	 * connected component, keyed by the sink's name in the graph file. A sink
+	 * is a node with no children, e.g. a dataout.
+	 */
+	public Map<String, Ratio> sinkRates() {
+		return sinkRates;
+	}
+
+	/** A reduced fraction num/den; 1/1 is the highest rate in the component. */
+	public record Ratio(long num, long den) {
+		public Ratio {
+			long g = gcd(num, den);
+			num /= g;
+			den /= g;
+		}
+
+		/** This fraction of fs, e.g. a sink's rate in Hz given the highest rate in Hz. */
+		public double times(double fs) {
+			return fs * num / den;
+		}
+	}
+
+	private static Map<String, Ratio> sinkRates(Digraph<Node> graph, Map<Node, Integer> multiplicities) {
+		// The samples an edge carries per schedule period are its source's
+		// firings times its output rate. A rate changer fires at one rate and
+		// outputs at another, so the peak is a property of edges, not nodes.
+		Map<Node, Long> peaks = new IdentityHashMap<>();
+		for (Node start : graph.getVertices()) {
+			if (peaks.containsKey(start))
+				continue;
+			List<Node> component = new ArrayList<>();
+			Deque<Node> stack = new ArrayDeque<>();
+			stack.push(start);
+			peaks.put(start, 0L); // doubles as the visited mark until the peak is known
+			long peak = 0;
+			while (!stack.isEmpty()) {
+				Node node = stack.pop();
+				component.add(node);
+				if (!graph.getChildren(node).isEmpty())
+					peak = Math.max(peak, (long) multiplicities.get(node) * node.outputRate());
+				for (List<Node> neighbors : List.of(graph.getChildren(node), graph.getParents(node)))
+					for (Node neighbor : neighbors)
+						if (peaks.putIfAbsent(neighbor, 0L) == null)
+							stack.push(neighbor);
+			}
+			for (Node node : component)
+				peaks.put(node, peak);
+		}
+
+		Map<String, Ratio> rates = new TreeMap<>();
+		graph.getVertexNames().forEach((name, node) -> {
+			if (graph.getChildren(node).isEmpty())
+				rates.put(name, new Ratio((long) multiplicities.get(node) * node.inputRate(), peaks.get(node)));
+		});
+		return Collections.unmodifiableMap(rates);
+	}
+
 	private record Fraction(int num, int den) {
 		Fraction {
 			int g = gcd(num, den);
@@ -177,6 +242,15 @@ public class SDFGraph {
 	private static int gcd(int a, int b) {
 		while (b != 0) {
 			int tmp = a % b;
+			a = b;
+			b = tmp;
+		}
+		return a;
+	}
+
+	private static long gcd(long a, long b) {
+		while (b != 0) {
+			long tmp = a % b;
 			a = b;
 			b = tmp;
 		}

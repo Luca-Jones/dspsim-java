@@ -18,6 +18,7 @@ import java.util.Map;
  * connect time, and a line-based save format (extension .dsg):
  *
  *   DSPSIM 1
+ *   FS <hz>                  (the highest sample rate, for plot axes; absent = unset)
  *   MACRO <name>=<value>
  *   BLOCK <id> <dotType> <x> <y> <name> [<dir>]   (dir: E/S/W/N, default E)
  *   P <key>=<value>          (attaches to the preceding BLOCK)
@@ -32,6 +33,10 @@ public class Diagram {
 	 *  param field that names one of these is written as a bare identifier
 	 *  (the macro) instead of a literal, so many blocks can share one knob. */
 	public final LinkedHashMap<String, String> macros = new LinkedHashMap<>();
+	/** What the highest sample rate in the diagram is in Hz, 0 when unset.
+	 *  Only an annotation for plot axes: the engine never sees it. Each
+	 *  dataout's own rate follows from it via SDFGraph.sinkRates. */
+	public double fs = 0;
 	public boolean dirty = false;
 	private int nextId = 1;
 
@@ -141,6 +146,8 @@ public class Diagram {
 
 	private void write(PrintWriter pw) {
 		pw.println("DSPSIM 1");
+		if (fs > 0)
+			pw.println("FS " + formatFs(fs));
 		for (Map.Entry<String, String> e : macros.entrySet())
 			pw.println("MACRO " + e.getKey() + "=" + e.getValue());
 		for (Block b : blocks) {
@@ -153,6 +160,26 @@ public class Diagram {
 			pw.println("WIRE " + w.src.id + " " + w.dst.id
 					+ (w.srcPort == 0 && w.dstPort == 0 ? "" : " " + w.srcPort + " " + w.dstPort)
 					+ (w.width.isEmpty() ? "" : " w=" + w.width));
+	}
+
+	/** Text that parseFs reads back to exactly hz, without a trailing ".0". */
+	public static String formatFs(double hz) {
+		return hz == Math.rint(hz) && hz < 1e15 ? Long.toString((long) hz) : Double.toString(hz);
+	}
+
+	/** A sample rate in Hz, e.g. "10000" or "44.1e3". Blank means unset (0).
+	 *  Throws IllegalArgumentException with a user-facing message. */
+	public static double parseFs(String text) {
+		if (text.isBlank())
+			return 0;
+		try {
+			double hz = Double.parseDouble(text.trim());
+			if (hz > 0 && Double.isFinite(hz))
+				return hz;
+		} catch (NumberFormatException ignored) {
+			// reported below
+		}
+		throw new IllegalArgumentException("fs must be a positive number of Hz, was \"" + text.trim() + "\"");
 	}
 
 	/** The diagram as .dsg text; also the undo history's state format. */
@@ -184,7 +211,13 @@ public class Diagram {
 		String line;
 		while ((line = br.readLine()) != null) {
 			line = line.trim();
-			if (line.startsWith("MACRO ")) {
+			if (line.startsWith("FS ")) {
+				try {
+					d.fs = parseFs(line.substring(3));
+				} catch (IllegalArgumentException e) {
+					throw new IOException(e.getMessage());
+				}
+			} else if (line.startsWith("MACRO ")) {
 				String kv = line.substring(6);
 				int eq = kv.indexOf('=');
 				if (eq > 0)

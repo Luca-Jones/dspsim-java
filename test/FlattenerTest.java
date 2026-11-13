@@ -176,6 +176,24 @@ public class FlattenerTest {
 		assertEquals(List.of(0, 1, 0), back.wires.stream().map(w -> w.srcPort).toList());
 	}
 
+	@Test
+	void sampleRateSurvivesSaveAndLoad() {
+		Diagram d = new Diagram();
+		assertFalse(d.snapshot().contains("FS"), "unset fs writes no line");
+		d.fs = Diagram.parseFs("44.1e3");
+		assertEquals(44100.0, Diagram.fromSnapshot(d.snapshot()).fs);
+		assertTrue(d.snapshot().contains("FS 44100\n"), d.snapshot());
+		d.fs = 1e4 / 3;
+		assertEquals(d.fs, Diagram.fromSnapshot(d.snapshot()).fs);
+	}
+
+	@Test
+	void sampleRateMustBeAPositiveNumber() {
+		assertEquals(0.0, Diagram.parseFs("  "), "blank means unset");
+		for (String bad : List.of("0", "-5", "10k", "NaN", "Infinity"))
+			assertThrows(IllegalArgumentException.class, () -> Diagram.parseFs(bad), bad);
+	}
+
 	/** x -[W]-> gain -[12]-> y, with MACRO W=10. */
 	private void widthSub() throws IOException {
 		Diagram d = new Diagram();

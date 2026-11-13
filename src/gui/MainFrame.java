@@ -6,6 +6,8 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Toolkit;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -14,9 +16,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -34,6 +36,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
@@ -46,7 +49,8 @@ import sim.SDFGraph;
 /**
  * The editor window. The GUI's whole job is to produce a .dot file; the one
  * and only engine touchpoint is runSim(), which compiles the drawing to that
- * file and calls SDFGraph.loadFromFile(path).run(iterations).
+ * file and calls SDFGraph.loadFromFile(path).run(iterations), then asks the
+ * graph for its sink rates to scale the plots' frequency axes.
  */
 public class MainFrame extends JFrame {
 
@@ -59,6 +63,7 @@ public class MainFrame extends JFrame {
 	private final JLabel status = new JLabel();
 	private final JLabel zoomLabel = new JLabel("100%");
 	private JSpinner iterations;
+	private JTextField fsField;
 	private JButton runButton;
 	private JToggleButton selectButton;
 	private File currentFile;
@@ -174,6 +179,24 @@ public class MainFrame extends JFrame {
 		iterations = new JSpinner(new SpinnerNumberModel(8, 1, 1_000_000, 1));
 		iterations.setMaximumSize(new Dimension(90, 28));
 		tb.add(iterations);
+		tb.addSeparator();
+
+		tb.add(new JLabel("fs (Hz): "));
+		fsField = new JTextField(8);
+		fsField.setMaximumSize(new Dimension(110, 28));
+		fsField.setToolTipText("<html>The diagram's highest sample rate in Hz, e.g. 10000 or 44.1e3.<br>"
+				+ "Each plot gets a frequency axis in Hz at its own dataout's rate,<br>"
+				+ "above the f/fs one. Blank plots against f/fs alone.</html>");
+		fsField.addActionListener(e -> {
+			if (commitFs())
+				canvas.requestFocusInWindow();
+		});
+		fsField.addFocusListener(new FocusAdapter() {
+			@Override public void focusLost(FocusEvent e) {
+				commitFs();
+			}
+		});
+		tb.add(fsField);
 		tb.addSeparator();
 
 		runButton = new JButton("▶ Compile & Run");
@@ -323,6 +346,7 @@ public class MainFrame extends JFrame {
 		diagram = d;
 		diagram.dirty = true;
 		canvas.setDiagram(diagram, false);
+		refreshFs();
 		refreshTitle();
 		setStatus(undo ? "Undo." : "Redo.");
 	}
@@ -330,6 +354,44 @@ public class MainFrame extends JFrame {
 	private void refreshTitle() {
 		setTitle("dspsim — " + (currentFile == null ? "untitled" : currentFile.getName())
 				+ (diagram.dirty ? " *" : ""));
+	}
+
+	/** Shows the diagram's fs in the toolbar; called whenever the diagram is swapped. */
+	private void refreshFs() {
+		fsField.setText(diagram.fs > 0 ? Diagram.formatFs(diagram.fs) : "");
+	}
+
+	/** Applies the toolbar's fs text to the diagram. Returns false, with the
+	 *  field put back, when the text isn't a sample rate. */
+	private boolean commitFs() {
+		double hz;
+		try {
+			hz = Diagram.parseFs(fsField.getText());
+		} catch (IllegalArgumentException ex) {
+			refreshFs();
+			setStatus(ex.getMessage() + ".");
+			return false;
+		}
+		if (hz != diagram.fs) {
+			diagram.fs = hz;
+			diagram.dirty = true;
+			touch();
+			setStatus(hz > 0 ? "The highest sample rate is " + hertz(hz) + "."
+					: "Cleared fs — plots use f/fs alone.");
+		}
+		refreshFs();
+		return true;
+	}
+
+	/** 5000 -> "5 kHz", for status messages. */
+	private static String hertz(double hz) {
+		String[] units = { "Hz", "kHz", "MHz", "GHz" };
+		int u = 0;
+		while (hz >= 1000 && u < units.length - 1) {
+			hz /= 1000;
+			u++;
+		}
+		return new java.text.DecimalFormat("0.####").format(hz) + " " + units[u];
 	}
 
 	private void editMacros() {
@@ -356,6 +418,7 @@ public class MainFrame extends JFrame {
 		currentFile = null;
 		history.reset(diagram);
 		canvas.setDiagram(diagram);
+		refreshFs();
 		refreshTitle();
 		setStatus("New diagram.");
 	}
@@ -375,6 +438,7 @@ public class MainFrame extends JFrame {
 			currentFile = f;
 			history.reset(diagram);
 			canvas.setDiagram(diagram);
+			refreshFs();
 			refreshTitle();
 			setStatus("Loaded " + f.getName() + ".");
 		} catch (Exception ex) {
@@ -454,6 +518,9 @@ public class MainFrame extends JFrame {
 	}
 
 	private void runSim() {
+		// Ctrl+R leaves the focus, and so an uncommitted edit, in the fs field
+		if (!commitFs())
+			return;
 		Diagram flat = compile();
 		if (flat == null)
 			return;
@@ -474,16 +541,18 @@ public class MainFrame extends JFrame {
 			return;
 		}
 		int n = (Integer) iterations.getValue();
+		double fs = diagram.fs;
 		runButton.setEnabled(false);
 		setStatus("Compiled " + dotFile.getName() + " — running " + n + " iterations…");
 		new Thread(() -> {
 			try {
 				long t0 = System.nanoTime();
-				SDFGraph.loadFromFile(dotFile.getPath()).run(n);
+				SDFGraph sdf = SDFGraph.loadFromFile(dotFile.getPath());
+				sdf.run(n);
 				long ms = (System.nanoTime() - t0) / 1_000_000;
 				SwingUtilities.invokeLater(() -> {
 					setStatus("Ran " + n + " iterations in " + ms + " ms.");
-					launchPlots(flat);
+					launchPlots(flat, sdf.sinkRates(), fs);
 				});
 			} catch (Exception ex) {
 				SwingUtilities.invokeLater(() -> {
@@ -500,9 +569,11 @@ public class MainFrame extends JFrame {
 	}
 
 	/** Fire-and-forget matplotlib windows for every dataout CSV that exists.
-	 *  The engine writes files relative to the JVM working directory. */
-	private void launchPlots(Diagram flat) {
-		Set<String> csvs = new LinkedHashSet<>();
+	 *  The engine writes files relative to the JVM working directory. With fs
+	 *  set, each plot gets its dataout's own sample rate: fs is the highest
+	 *  rate in the dataout's connected component, scaled by its sink rate. */
+	private void launchPlots(Diagram flat, Map<String, SDFGraph.Ratio> rates, double fs) {
+		Map<String, Double> csvs = new LinkedHashMap<>(); // file -> its sample rate in Hz
 		int consoleSinks = 0;
 		for (Block b : flat.blocks) {
 			if (b.type != BlockType.DATAOUT)
@@ -511,7 +582,7 @@ public class MainFrame extends JFrame {
 			if (file.isEmpty())
 				consoleSinks++;
 			else if (Files.exists(Path.of(file)))
-				csvs.add(file);
+				csvs.putIfAbsent(file, rates.get(DotWriter.nodeName(b)).times(fs));
 		}
 		String note = consoleSinks > 0 ? " (" + consoleSinks + " sink(s) printed to the console)" : "";
 		if (csvs.isEmpty()) {
@@ -519,9 +590,10 @@ public class MainFrame extends JFrame {
 				setStatus("Done — output went to the console.");
 			return;
 		}
+		String files = String.join(", ", csvs.keySet());
 		Path plotPy = Path.of("python", "plot.py");
 		if (!Files.exists(plotPy)) {
-			setStatus("Done, wrote " + String.join(", ", csvs)
+			setStatus("Done, wrote " + files
 					+ " — python/plot.py not found (run from the repo root to auto-plot)." + note);
 			return;
 		}
@@ -530,16 +602,26 @@ public class MainFrame extends JFrame {
 		List<String> cmd = new ArrayList<>();
 		cmd.add(python);
 		cmd.add(plotPy.toString());
-		cmd.addAll(csvs);
+		cmd.addAll(csvs.keySet());
+		String plotted = files;
+		if (fs > 0) {
+			cmd.add("--fs");
+			List<String> labelled = new ArrayList<>();
+			csvs.forEach((file, hz) -> {
+				cmd.add(Double.toString(hz));
+				labelled.add(file + " (" + hertz(hz) + ")");
+			});
+			plotted = String.join(", ", labelled);
+		}
 		try {
 			new ProcessBuilder(cmd)
 					.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 					.redirectError(ProcessBuilder.Redirect.INHERIT) // plot errors reach the launching terminal
 					.start();
-			setStatus("Done — plotting " + String.join(", ", csvs) + "." + note);
+			setStatus("Done — plotting " + plotted + "." + note);
 		} catch (IOException ex) {
-			setStatus("Done, wrote " + String.join(", ", csvs) + " — " + python
-					+ " not found, plot manually: python3 python/plot.py " + String.join(" ", csvs));
+			setStatus("Done, wrote " + files + " — " + python
+					+ " not found, plot manually: python3 " + String.join(" ", cmd.subList(1, cmd.size())));
 		}
 	}
 }

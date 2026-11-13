@@ -47,6 +47,14 @@ MacOS / Linux:
 python3 python/plot.py examples/out.csv
 ```
 
+The frequency axis is normalized (`f/fs`). Give the sample rate in Hz with
+`--fs`, after the files, to add a second axis along the top in Hz, kHz, MHz or
+GHz, whichever suits the rate: one rate for all the files, or one per file.
+
+```sh
+python3 python/plot.py out1.csv out2.csv --fs 10000 5000
+```
+
 
 ## Graph File Format
 
@@ -137,6 +145,24 @@ or a macro name, and only wires with a width set show the `/N` mark. Inside a
 sub-diagram, a width can be one of its macros, so it can be set per instance.
 Where a wire enters or leaves a sub-diagram through a port, the narrower of the
 two widths applies.
+
+
+## Sample rate (GUI)
+
+The toolbar's **fs (Hz)** field says what the highest sample rate in the
+diagram is, e.g. `10000` or `44.1e3`. It is saved in the `.dsg` and is only an
+annotation for the plots: the engine and the `.dot` file never see it. On Run,
+each `dataout`'s plot gets an absolute frequency axis along the top at its own
+rate, worked out from the rate changes between it and the fastest wire. With
+fs = 10 kHz, `in -> out1` and `in -> decimator(2) -> out2` plot `out1` up to
+5 kHz and `out2` up to 2.5 kHz. Each plot's title and the status bar show the
+rate used. The bottom axis is always `f/fs`; leave the field blank to plot
+with that axis alone.
+
+The highest rate is wherever the graph runs fastest, which need not be the
+input. In an interpolating design it is the output, and with an interpolator
+followed by a decimator it is the wire between them. A diagram made of
+several unconnected graphs applies fs to the fastest wire of each one.
 
 
 ## Sub-diagrams (GUI)
